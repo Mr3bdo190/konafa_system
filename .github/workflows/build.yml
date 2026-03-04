@@ -34,16 +34,27 @@ jobs:
           cp my-key.jks android/app/
           cp google-services.json android/app/
           
-          # 3. إعداد إصدارات الأندرويد لتتوافق مع فايربيز
+          # 3. إعداد إصدارات الأندرويد
           sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
           sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
           sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
 
-          # 4. تفعيل خدمات جوجل (Google Services)
-          sed -i '/dependencies {/a \        classpath "com.google.gms:google-services:4.3.15"' android/build.gradle
-          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+          # 4. الحل الجذري لإضافة جوجل (وضعها بالقوة في بداية ملف المشروع)
+          cat << 'GRADLE_EOF' > temp_build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath "com.google.gms:google-services:4.3.15"
+              }
+          }
+          GRADLE_EOF
+          cat android/build.gradle >> temp_build.gradle
+          mv temp_build.gradle android/build.gradle
 
-          # 5. الكود الإجباري لدمج مفتاح التوقيع (الضربة القاضية لخطأ 10)
+          # 5. دمج مفتاح التوقيع الإجباري
           cat << 'INNER_EOF' >> android/app/build.gradle
 
           android {
@@ -62,6 +73,9 @@ jobs:
               }
           }
           INNER_EOF
+
+          # 6. تفعيل إضافة جوجل في نهاية ملف التطبيق
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
 
       - name: Install dependencies
         run: flutter pub get
