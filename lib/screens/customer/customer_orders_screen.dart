@@ -1,4 +1,3 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -8,69 +7,59 @@ class CustomerOrdersScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return const Center(child: Text('يرجى تسجيل الدخول'));
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: StreamBuilder(
-        // شلنا orderBy من هنا عشان نحل مشكلة اختفاء الطلبات
-        stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: user.uid).snapshots(),
-        builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('لم تقم بأي طلبات حتى الآن', style: TextStyle(fontSize: 18, color: Colors.deepPurple)));
-          }
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F3F8),
+        appBar: AppBar(title: const Text('طلباتي السابقة'), backgroundColor: Colors.deepPurple, centerTitle: true),
+        body: StreamBuilder(
+          stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: uid).orderBy('timestamp', descending: true).snapshots(),
+          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لم تقم بأي طلبات بعد 📋', style: TextStyle(fontSize: 20, color: Colors.grey)));
 
-          // ترتيب الطلبات من الأحدث للأقدم برمجياً داخل التطبيق
-          final orders = snapshot.data!.docs.toList();
-          orders.sort((a, b) => (b['timestamp'] as Timestamp).compareTo(a['timestamp'] as Timestamp));
+            return ListView.builder(
+              padding: const EdgeInsets.all(15),
+              itemCount: snapshot.data!.docs.length,
+              itemBuilder: (context, index) {
+                var order = snapshot.data!.docs[index];
+                var data = order.data() as Map<String, dynamic>;
+                String status = data['status'] ?? 'pending';
+                Color statusColor = status == 'pending' ? Colors.orange : (status == 'accepted' ? Colors.blue : Colors.green);
+                String statusText = status == 'pending' ? 'قيد الانتظار' : (status == 'accepted' ? 'جاري التجهيز' : 'مكتمل');
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(15),
-            itemCount: orders.length,
-            itemBuilder: (context, index) {
-              final data = orders[index].data() as Map<String, dynamic>;
-              final status = data['status'] ?? 'pending';
-              
-              String statusText = 'قيد المراجعة'; Color statusColor = Colors.orange; IconData statusIcon = Icons.access_time;
-              if (status == 'preparing') { statusText = 'جاري التجهيز'; statusColor = Colors.blue; statusIcon = Icons.soup_kitchen; } 
-              else if (status == 'delivered') { statusText = 'تم التوصيل'; statusColor = Colors.green; statusIcon = Icons.check_circle; }
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 15),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5)),
-                      padding: const EdgeInsets.all(15),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text('طلب #${orders[index].id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)),
-                              Chip(label: Text(statusText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)), backgroundColor: statusColor, avatar: Icon(statusIcon, color: Colors.white, size: 16))
-                            ],
-                          ),
-                          const Divider(),
-                          Text('الإجمالي: ${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.purple, fontSize: 16)),
-                          const SizedBox(height: 5),
-                          Text('عدد الأصناف: ${(data['items'] as List).length}', style: TextStyle(color: Colors.grey.shade800)),
-                        ],
-                      ),
-                    ),
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  elevation: 3,
+                  child: ExpansionTile(
+                    title: Text('طلب #${order.id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('الإجمالي: ${data['totalAmount']} ج.م', style: const TextStyle(color: Colors.deepPurple)),
+                    trailing: Chip(label: Text(statusText, style: const TextStyle(color: Colors.white)), backgroundColor: statusColor),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('نوع الطلب: ${data['orderType']} (${data['deliveryDetails']})', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const Divider(),
+                            ...List.generate((data['items'] as List).length, (i) {
+                              var item = (data['items'] as List)[i];
+                              return Text('- ${item['name']} (x${item['quantity']})');
+                            }),
+                          ],
+                        ),
+                      )
+                    ],
                   ),
-                ),
-              );
-            },
-          );
-        },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }
