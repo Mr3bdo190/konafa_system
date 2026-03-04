@@ -2,7 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../auth/login_screen.dart';
-import 'admin_menu_screen.dart'; // هننشئها الخطوة الجاية
+import 'admin_menu_screen.dart';
+import 'admin_orders_screen.dart'; // استدعاء شاشة الطلبات
+import 'admin_customers_screen.dart'; // استدعاء شاشة العملاء
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -38,16 +40,16 @@ class AdminHomeScreen extends StatelessWidget {
               mainAxisSpacing: 15,
               children: [
                 _buildDashboardCard(context, 'الطلبات', Icons.receipt_long, Colors.orange, () {
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminOrdersScreen())); // تم التفعيل
                 }),
                 _buildDashboardCard(context, 'إدارة المنيو', Icons.restaurant_menu, Colors.purple, () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminMenuScreen()));
                 }),
                 _buildDashboardCard(context, 'العملاء', Icons.people, Colors.blue, () {
-                  // Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCustomersScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminCustomersScreen())); // تم التفعيل
                 }),
                 _buildDashboardCard(context, 'الفروع', Icons.storefront, Colors.teal, () {
-                  // سيتم إضافتها لاحقاً
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('إدارة الفروع - قريباً')));
                 }),
               ],
             ),
