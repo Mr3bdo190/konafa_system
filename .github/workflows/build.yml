@@ -21,7 +21,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.0'
+          flutter-version: '3.19.0' # العودة لإصدار فلاتر مستقر جداً يحل مشكلة SDK 35
           channel: 'stable'
 
       - name: Create platform folders and fix versions
@@ -32,11 +32,9 @@ jobs:
           # 1. حل مشكلة الحد الأدنى للأندرويد لـ Firebase
           sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
           
-          # 2. حل مشكلة توافق إصدار Kotlin
+          # 2. حل مشكلة توافق إصدار Kotlin مع Firebase
           sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
           sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
-
-          # تم إزالة محاولة تحديث الـ compileSdk لـ 35
 
       - name: Install dependencies
         run: flutter pub get
