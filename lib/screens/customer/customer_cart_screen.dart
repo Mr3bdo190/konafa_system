@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../models/order_model.dart'; // استدعاء القالب الرسمي للأدمن
 
 class CustomerCartScreen extends StatefulWidget {
   const CustomerCartScreen({super.key});
@@ -11,10 +12,9 @@ class CustomerCartScreen extends StatefulWidget {
 }
 
 class _CustomerCartScreenState extends State<CustomerCartScreen> {
-  String _orderType = 'توصيل';
+  String _orderType = 'delivery'; // الأدمن بيقرأها إنجليزي
   String _deliveryArea = 'المنطقة الأولى';
   final List<String> _areas = ['المنطقة الأولى', 'المنطقة الثانية', 'المنطقة الثالثة'];
-  final TextEditingController _notesCtrl = TextEditingController();
 
   void _placeOrder(List<QueryDocumentSnapshot> cartItems, double total) async {
     if (cartItems.isEmpty) return;
@@ -22,29 +22,32 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
     final user = FirebaseAuth.instance.currentUser!;
     final userData = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
     
-    // 1. إنشاء الطلب
-    await FirebaseFirestore.instance.collection('Orders').add({
-      'customerId': user.uid,
-      'customerName': userData['name'] ?? 'عميل',
-      'customerPhone': userData['phone'] ?? '',
-      'customerAddress': userData['address'] ?? '',
-      'items': cartItems.map((item) => item.data()).toList(),
-      'totalAmount': total,
-      'orderType': _orderType,
-      'deliveryDetails': _orderType == 'توصيل' ? _deliveryArea : 'استلام من الفرع',
-      'notes': _notesCtrl.text.trim(),
-      'status': 'pending',
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    // 1. تجهيز معرف للطلب عشان الأدمن يقدر يعدل حالته
+    DocumentReference newOrderRef = FirebaseFirestore.instance.collection('Orders').doc();
 
-    // 2. تفريغ السلة بعد الطلب
+    // 2. استخدام قالب OrderModel الرسمي المطابق للأدمن
+    OrderModel newOrder = OrderModel(
+      orderId: newOrderRef.id,
+      customerId: user.uid,
+      customerName: userData['name'] ?? 'عميل',
+      items: cartItems.map((item) => item.data() as Map<String, dynamic>).toList(),
+      totalAmount: total,
+      timestamp: Timestamp.now(),
+      status: 'pending', // حالة الانتظار اللي الأدمن بيشوفها
+      orderType: _orderType,
+      deliveryDetails: _orderType == 'delivery' ? _deliveryArea : 'استلام من الفرع',
+    );
+
+    // 3. إرسال الطلب لفايربيز
+    await newOrderRef.set(newOrder.toMap());
+
+    // 4. تفريغ السلة
     for (var doc in cartItems) {
       await doc.reference.delete();
     }
     
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الطلب بنجاح! 🎉'), backgroundColor: Colors.green));
-    _notesCtrl.clear();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال الطلب للأدمن بنجاح! 🎉'), backgroundColor: Colors.green));
   }
 
   @override
@@ -95,14 +98,10 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                   ),
                 ),
                 
-                // منطقة تفاصيل الدفع والطلب
+                // منطقة الدفع المطابقة لخيارات الأدمن
                 Container(
                   padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                    boxShadow: [BoxShadow(color: Colors.deepPurple.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))],
-                  ),
+                  decoration: BoxDecoration(color: Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -116,11 +115,11 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                       const SizedBox(height: 15),
                       Row(
                         children: [
-                          Expanded(child: RadioListTile(title: const Text('توصيل'), value: 'توصيل', groupValue: _orderType, onChanged: (v) => setState(() => _orderType = v.toString()))),
-                          Expanded(child: RadioListTile(title: const Text('استلام'), value: 'استلام', groupValue: _orderType, onChanged: (v) => setState(() => _orderType = v.toString()))),
+                          Expanded(child: RadioListTile(title: const Text('توصيل'), value: 'delivery', groupValue: _orderType, onChanged: (v) => setState(() => _orderType = v.toString()))),
+                          Expanded(child: RadioListTile(title: const Text('استلام'), value: 'pickup', groupValue: _orderType, onChanged: (v) => setState(() => _orderType = v.toString()))),
                         ],
                       ),
-                      if (_orderType == 'توصيل')
+                      if (_orderType == 'delivery')
                         DropdownButtonFormField(
                           value: _deliveryArea,
                           items: _areas.map((a) => DropdownMenuItem(value: a, child: Text(a))).toList(),
@@ -131,7 +130,7 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                       ElevatedButton(
                         onPressed: () => _placeOrder(cartItems, total),
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 50), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                        child: const Text('تأكيد وإرسال الطلب', style: TextStyle(fontSize: 18, color: Colors.white)),
+                        child: const Text('تأكيد الطلب', style: TextStyle(fontSize: 18, color: Colors.white)),
                       )
                     ],
                   ),
