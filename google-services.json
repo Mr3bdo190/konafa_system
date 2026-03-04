@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "44212119840",
+    "project_id": "konafasystem",
+    "storage_bucket": "konafasystem.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44212119840:android:1f75856830c17e47674f45",
+        "android_client_info": {
+          "package_name": "com.example.konafa_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQDw8xitgzsjDusCae1PvWRsk3K2ucCf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
