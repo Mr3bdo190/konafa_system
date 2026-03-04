@@ -22,9 +22,8 @@ jobs:
         run: |
           flutter create .
           git checkout lib/ pubspec.yaml || true
-          # السطرين دول بيعدلوا الحد الأدنى للأندرويد لـ 23 عشان فايربيز
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle
-          sed -i 's/minSdkVersion 21/minSdkVersion 23/g' android/app/build.gradle
+          # الحل الجذري لتغيير إصدار الأندرويد في فلاتر 3.24
+          sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
 
       - name: Install dependencies
         run: flutter pub get
