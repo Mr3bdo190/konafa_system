@@ -1,36 +1,45 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
-import 'register_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
 
-  void _login() async {
+  void _register() async {
+    if (_nameController.text.isEmpty || _phoneController.text.isEmpty || _emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء ملء جميع البيانات')));
+      return;
+    }
+
     setState(() => _isLoading = true);
-    final user = await _authService.loginUser(
+    final user = await _authService.registerUser(
       _emailController.text.trim(),
       _passwordController.text.trim(),
+      _nameController.text.trim(),
+      _phoneController.text.trim(),
     );
     setState(() => _isLoading = false);
 
     if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('مرحباً ${user.name}، تم الدخول بنجاح!')),
+        const SnackBar(content: Text('تم إنشاء الحساب بنجاح!')),
       );
+      Navigator.pop(context); // الرجوع لشاشة تسجيل الدخول
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل تسجيل الدخول، تأكد من البيانات')),
+        const SnackBar(content: Text('حدث خطأ أثناء إنشاء الحساب')),
       );
     }
   }
@@ -38,38 +47,32 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3F8), // أبيض غامق مائل للموف
+      backgroundColor: const Color(0xFFF5F3F8),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: Stack(
           children: [
-            // أشكال ونقوش في الخلفية (دوائر موف مموهة)
+            // الأشكال الخلفية
             Positioned(
-              top: -50,
-              right: -50,
-              child: Container(
-                width: 200,
-                height: 200,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.purple.shade200.withOpacity(0.5),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -100,
+              top: -80,
               left: -50,
               child: Container(
                 width: 250,
                 height: 250,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.deepPurple.shade300.withOpacity(0.4),
-                ),
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.purple.shade300.withOpacity(0.4)),
+              ),
+            ),
+            Positioned(
+              bottom: -50,
+              right: -50,
+              child: Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.deepPurple.shade200.withOpacity(0.5)),
               ),
             ),
             
-            // المحتوى الزجاجي الشفاف
+            // الفورم الشفاف
             Center(
               child: SingleChildScrollView(
                 child: Padding(
@@ -81,22 +84,34 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(30),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3), // شفافية
+                          color: Colors.white.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(30),
                           border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
                         ),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              'تسجيل الدخول',
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.deepPurple,
-                              ),
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.arrow_back, color: Colors.deepPurple),
+                                  onPressed: () => Navigator.pop(context),
+                                ),
+                                const Expanded(
+                                  child: Text(
+                                    'إنشاء حساب جديد',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                                  ),
+                                ),
+                                const SizedBox(width: 48), // لموازنة زر الرجوع
+                              ],
                             ),
                             const SizedBox(height: 30),
+                            _buildTextField(_nameController, 'الاسم بالكامل', Icons.person),
+                            const SizedBox(height: 15),
+                            _buildTextField(_phoneController, 'رقم الهاتف', Icons.phone, isNumber: true),
+                            const SizedBox(height: 15),
                             _buildTextField(_emailController, 'البريد الإلكتروني', Icons.email),
                             const SizedBox(height: 15),
                             _buildTextField(_passwordController, 'كلمة المرور', Icons.lock, isPassword: true),
@@ -104,27 +119,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             _isLoading
                                 ? const CircularProgressIndicator(color: Colors.deepPurple)
                                 : ElevatedButton(
-                                    onPressed: _login,
+                                    onPressed: _register,
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: Colors.deepPurple.shade400,
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                                       minimumSize: const Size(double.infinity, 55),
                                     ),
                                     child: const Text(
-                                      'دخول',
+                                      'إنشاء الحساب',
                                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
                                     ),
                                   ),
-                            const SizedBox(height: 15),
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
-                              },
-                              child: Text(
-                                'ليس لديك حساب؟ إنشاء حساب',
-                                style: TextStyle(color: Colors.deepPurple.shade700, fontSize: 16),
-                              ),
-                            )
                           ],
                         ),
                       ),
@@ -139,10 +144,11 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPassword = false}) {
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPassword = false, bool isNumber = false}) {
     return TextField(
       controller: controller,
       obscureText: isPassword,
+      keyboardType: isNumber ? TextInputType.phone : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: Colors.deepPurple.shade300),
