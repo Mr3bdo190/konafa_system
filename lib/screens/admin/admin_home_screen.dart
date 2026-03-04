@@ -1,4 +1,3 @@
-import 'admin_branches_screen.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +6,7 @@ import '../auth/login_screen.dart';
 import 'admin_menu_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_customers_screen.dart';
+import 'admin_branches_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -36,7 +36,6 @@ class AdminHomeScreen extends StatelessWidget {
             GridView.count(
               padding: const EdgeInsets.all(20), crossAxisCount: 2, crossAxisSpacing: 15, mainAxisSpacing: 15,
               children: [
-                // كارت الطلبات مع الإشعارات
                 StreamBuilder(
                   stream: FirebaseFirestore.instance.collection('Orders').where('status', isEqualTo: 'pending').snapshots(),
                   builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -88,7 +87,6 @@ class AdminHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          // الإشعار الأحمر لو فيه طلبات جديدة
           if (badgeCount > 0)
             Positioned(
               top: -5, left: -5,
