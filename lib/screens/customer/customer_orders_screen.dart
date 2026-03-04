@@ -9,55 +9,35 @@ class CustomerOrdersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const Center(child: Text('يرجى تسجيل الدخول لعرض الطلبات'));
-    }
+    if (user == null) return const Center(child: Text('يرجى تسجيل الدخول'));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: StreamBuilder(
-        // جلب طلبات العميل الحالي فقط، مرتبة بالأحدث
-        stream: FirebaseFirestore.instance
-            .collection('Orders')
-            .where('customerId', isEqualTo: user.uid)
-            .orderBy('timestamp', descending: true)
-            .snapshots(),
+        // شلنا orderBy من هنا عشان نحل مشكلة اختفاء الطلبات
+        stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: user.uid).snapshots(),
         builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('لم تقم بأي طلبات حتى الآن، المنيو في انتظارك!', 
-              style: TextStyle(fontSize: 18, color: Colors.deepPurple)),
-            );
+            return const Center(child: Text('لم تقم بأي طلبات حتى الآن', style: TextStyle(fontSize: 18, color: Colors.deepPurple)));
           }
 
-          final orders = snapshot.data!.docs;
+          // ترتيب الطلبات من الأحدث للأقدم برمجياً داخل التطبيق
+          final orders = snapshot.data!.docs.toList();
+          orders.sort((a, b) => (b['timestamp'] as Timestamp).compareTo(a['timestamp'] as Timestamp));
 
           return ListView.builder(
             padding: const EdgeInsets.all(15),
             itemCount: orders.length,
             itemBuilder: (context, index) {
-              final order = orders[index];
-              final data = order.data() as Map<String, dynamic>;
+              final data = orders[index].data() as Map<String, dynamic>;
               final status = data['status'] ?? 'pending';
               
-              // تحديد لون وحالة الطلب
-              String statusText = 'قيد المراجعة';
-              Color statusColor = Colors.orange;
-              IconData statusIcon = Icons.access_time;
-
-              if (status == 'preparing') {
-                statusText = 'جاري التجهيز';
-                statusColor = Colors.blue;
-                statusIcon = Icons.soup_kitchen;
-              } else if (status == 'delivered') {
-                statusText = 'تم التوصيل';
-                statusColor = Colors.green;
-                statusIcon = Icons.check_circle;
-              }
+              String statusText = 'قيد المراجعة'; Color statusColor = Colors.orange; IconData statusIcon = Icons.access_time;
+              if (status == 'preparing') { statusText = 'جاري التجهيز'; statusColor = Colors.blue; statusIcon = Icons.soup_kitchen; } 
+              else if (status == 'delivered') { statusText = 'تم التوصيل'; statusColor = Colors.green; statusIcon = Icons.check_circle; }
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 15),
@@ -66,11 +46,7 @@ class CustomerOrdersScreen extends StatelessWidget {
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                     child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.5),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5),
-                      ),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5)),
                       padding: const EdgeInsets.all(15),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,12 +54,8 @@ class CustomerOrdersScreen extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('طلب #${order.id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)),
-                              Chip(
-                                label: Text(statusText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                                backgroundColor: statusColor,
-                                avatar: Icon(statusIcon, color: Colors.white, size: 16),
-                              )
+                              Text('طلب #${orders[index].id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)),
+                              Chip(label: Text(statusText, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)), backgroundColor: statusColor, avatar: Icon(statusIcon, color: Colors.white, size: 16))
                             ],
                           ),
                           const Divider(),

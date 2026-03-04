@@ -1,3 +1,4 @@
+import 'complete_profile_screen.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
@@ -15,11 +16,47 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
+ElevatedButton.icon(
+                              onPressed: () async {
+                                String result = await _authService.signInWithGoogle();
+                                if (result == 'admin') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+                                else if (result == 'customer') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
+                                else if (result == 'new_user') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompleteProfileScreen()));
+                              },
+                              icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
+                              label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                            ),
+                            const SizedBox(height: 15),
   bool _isLoading = false;
 
   void _login() async {
+ElevatedButton.icon(
+                              onPressed: () async {
+                                String result = await _authService.signInWithGoogle();
+                                if (result == 'admin') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+                                else if (result == 'customer') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
+                                else if (result == 'new_user') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompleteProfileScreen()));
+                              },
+                              icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
+                              label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                            ),
+                            const SizedBox(height: 15),
     setState(() => _isLoading = true);
     final user = await _authService.loginUser(_emailController.text.trim(), _passwordController.text.trim());
+ElevatedButton.icon(
+                              onPressed: () async {
+                                String result = await _authService.signInWithGoogle();
+                                if (result == 'admin') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+                                else if (result == 'customer') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
+                                else if (result == 'new_user') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompleteProfileScreen()));
+                              },
+                              icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
+                              label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                            ),
+                            const SizedBox(height: 15),
     setState(() => _isLoading = false);
 
     if (user != null) {
@@ -65,6 +102,18 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 15),
                             _buildTextField(_passwordController, 'كلمة المرور', Icons.lock, isPassword: true),
                             const SizedBox(height: 30),
+ElevatedButton.icon(
+                              onPressed: () async {
+                                String result = await _authService.signInWithGoogle();
+                                if (result == 'admin') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+                                else if (result == 'customer') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
+                                else if (result == 'new_user') Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompleteProfileScreen()));
+                              },
+                              icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
+                              label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                            ),
+                            const SizedBox(height: 15),
                             _isLoading ? const CircularProgressIndicator(color: Colors.deepPurple) : ElevatedButton(
                                     onPressed: _login,
                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade400, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), minimumSize: const Size(double.infinity, 55)),

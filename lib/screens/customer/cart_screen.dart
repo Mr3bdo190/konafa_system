@@ -14,48 +14,43 @@ class CustomerCartScreen extends StatefulWidget {
 
 class _CustomerCartScreenState extends State<CustomerCartScreen> {
   bool _isLoading = false;
-  String _orderType = 'delivery'; // افتراضياً توصيل
-  String _selectedBranch = 'فرع بني سويف (الرئيسي)'; // فرع افتراضي
-  
-  // الفروع المتاحة
-  final List<String> _branches = ['فرع بني سويف (الرئيسي)', 'فرع ببا', 'فرع سدس'];
+  String _orderType = 'pickup'; // استلام من الفرع افتراضياً عشان مفيش رسوم
+  String? _selectedZoneName;
+  double _deliveryFee = 0.0;
 
   void _placeOrder(CartProvider cart) async {
-    if (cart.items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('السلة فارغة!'))); return;
+    if (cart.items.isEmpty) return;
+    if (_orderType == 'delivery' && _selectedZoneName == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('برجاء اختيار منطقة التوصيل')));
+      return;
     }
+
     setState(() => _isLoading = true);
-
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
-
+      final user = FirebaseAuth.instance.currentUser!;
       DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('Users').doc(user.uid).get();
-      String userName = userDoc['name'] ?? 'عميل';
-      String userAddress = userDoc['address'] ?? 'بدون عنوان';
-
-      List<Map<String, dynamic>> orderItems = cart.items.values.map((cartItem) {
-        return {'productId': cartItem.product.id, 'name': cartItem.product.name, 'price': cartItem.product.price, 'quantity': cartItem.quantity};
+      
+      List<Map<String, dynamic>> orderItems = cart.items.values.map((item) => {
+        'name': item.product.name, 'price': item.product.price, 'quantity': item.quantity
       }).toList();
 
-      String deliveryDetails = _orderType == 'delivery' ? 'توصيل إلى: $userAddress' : 'استلام من: $_selectedBranch';
+      double finalTotal = cart.totalAmount + (_orderType == 'delivery' ? _deliveryFee : 0);
+      String deliveryDetails = _orderType == 'delivery' ? 'توصيل إلى: ${_selectedZoneName} - ${userDoc['address']}' : 'استلام من الفرع';
 
-      DocumentReference orderRef = FirebaseFirestore.instance.collection('Orders').doc();
       OrderModel newOrder = OrderModel(
-        orderId: orderRef.id, customerId: user.uid, customerName: userName,
-        items: orderItems, totalAmount: cart.totalAmount, timestamp: Timestamp.now(),
+        orderId: FirebaseFirestore.instance.collection('Orders').doc().id,
+        customerId: user.uid, customerName: userDoc['name'],
+        items: orderItems, totalAmount: finalTotal, timestamp: Timestamp.now(),
         orderType: _orderType, deliveryDetails: deliveryDetails,
       );
 
-      await orderRef.set(newOrder.toMap());
-      await FirebaseFirestore.instance.collection('Users').doc(user.uid).update({
-        'total_orders': FieldValue.increment(1), 'total_spent': FieldValue.increment(cart.totalAmount),
-      });
-
+      await FirebaseFirestore.instance.collection('Orders').doc(newOrder.orderId).set(newOrder.toMap());
+      await FirebaseFirestore.instance.collection('Users').doc(user.uid).update({'total_orders': FieldValue.increment(1), 'total_spent': FieldValue.increment(finalTotal)});
+      
       cart.clear();
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلبك بنجاح!')));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ أثناء إرسال الطلب')));
+      print(e);
     }
     setState(() => _isLoading = false);
   }
@@ -63,6 +58,7 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
   @override
   Widget build(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
+    double finalTotal = cart.totalAmount + (_orderType == 'delivery' ? _deliveryFee : 0);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -74,87 +70,56 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                   child: ListView.builder(
                     itemCount: cart.items.length,
                     itemBuilder: (context, index) {
-                      final cartItem = cart.items.values.toList()[index];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), color: Colors.white.withOpacity(0.8),
-                        child: ListTile(
-                          title: Text(cartItem.product.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-                          subtitle: Text('الكمية: ${cartItem.quantity} x ${cartItem.product.price} ج.م'),
-                          trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.redAccent), onPressed: () => cart.removeItem(cartItem.product.id)),
-                        ),
-                      );
+                      final item = cart.items.values.toList()[index];
+                      return Card(margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5), child: ListTile(title: Text(item.product.name), subtitle: Text('${item.quantity} x ${item.product.price}'), trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => cart.removeItem(item.product.id))));
                     },
                   ),
                 ),
                 
-                // قسم اختيار التوصيل أو الاستلام
+                // خيارات التوصيل
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  color: Colors.white.withOpacity(0.4),
+                  color: Colors.white.withOpacity(0.6), padding: const EdgeInsets.all(10),
                   child: Column(
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          ChoiceChip(
-                            label: const Text('توصيل للمنزل'),
-                            selected: _orderType == 'delivery',
-                            selectedColor: Colors.deepPurple.shade200,
-                            onSelected: (val) => setState(() => _orderType = 'delivery'),
-                          ),
+                          ChoiceChip(label: const Text('استلام'), selected: _orderType == 'pickup', onSelected: (v) => setState((){ _orderType = 'pickup'; _deliveryFee = 0.0; })),
                           const SizedBox(width: 15),
-                          ChoiceChip(
-                            label: const Text('استلام من الفرع'),
-                            selected: _orderType == 'pickup',
-                            selectedColor: Colors.deepPurple.shade200,
-                            onSelected: (val) => setState(() => _orderType = 'pickup'),
-                          ),
+                          ChoiceChip(label: const Text('توصيل'), selected: _orderType == 'delivery', onSelected: (v) => setState(() => _orderType = 'delivery')),
                         ],
                       ),
-                      if (_orderType == 'pickup') ...[
-                        const SizedBox(height: 10),
-                        DropdownButton<String>(
-                          value: _selectedBranch,
-                          isExpanded: true,
-                          items: _branches.map((b) => DropdownMenuItem(value: b, child: Text(b))).toList(),
-                          onChanged: (val) => setState(() => _selectedBranch = val!),
-                        ),
-                      ],
-                      if (_orderType == 'delivery') ...[
-                        const SizedBox(height: 10),
-                        const Text('سيتم التوصيل للعنوان المسجل في حسابك', style: TextStyle(color: Colors.deepPurple, fontSize: 12)),
-                      ]
+                      if (_orderType == 'delivery')
+                        StreamBuilder(
+                          stream: FirebaseFirestore.instance.collection('DeliveryZones').snapshots(),
+                          builder: (context, AsyncSnapshot<QuerySnapshot> snap) {
+                            if (!snap.hasData) return const SizedBox();
+                            return DropdownButton<String>(
+                              hint: const Text('اختر منطقتك'), value: _selectedZoneName, isExpanded: true,
+                              items: snap.data!.docs.map((doc) => DropdownMenuItem(value: doc['name'] as String, child: Text('${doc['name']} (+${doc['fee']} ج.م)'))).toList(),
+                              onChanged: (val) {
+                                final selectedDoc = snap.data!.docs.firstWhere((doc) => doc['name'] == val);
+                                setState(() { _selectedZoneName = val; _deliveryFee = (selectedDoc['fee'] as num).toDouble(); });
+                              },
+                            );
+                          }
+                        )
                     ],
                   ),
                 ),
 
-                // الإجمالي وزر التأكيد
-                ClipRRect(
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.5), border: Border(top: BorderSide(color: Colors.white.withOpacity(0.5), width: 1.5))),
-                      child: Column(
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text('الإجمالي:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-                              Text('${cart.totalAmount} ج.م', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.purple)),
-                            ],
-                          ),
-                          const SizedBox(height: 15),
-                          _isLoading ? const CircularProgressIndicator(color: Colors.deepPurple) : ElevatedButton(
-                                  onPressed: () => _placeOrder(cart),
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade400, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), minimumSize: const Size(double.infinity, 50)),
-                                  child: const Text('إتمام الطلب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
-                                ),
-                        ],
-                      ),
-                    ),
+                // الإجمالي
+                Container(
+                  padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+                  child: Column(
+                    children: [
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('المجموع:'), Text('${cart.totalAmount} ج.م')]),
+                      if (_orderType == 'delivery') Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('التوصيل:'), Text('$_deliveryFee ج.م')]),
+                      const Divider(),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الإجمالي النهائي:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)), Text('$finalTotal ج.م', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepPurple))]),
+                      const SizedBox(height: 15),
+                      _isLoading ? const CircularProgressIndicator() : ElevatedButton(onPressed: () => _placeOrder(cart), style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)), child: const Text('تأكيد الطلب')),
+                    ],
                   ),
                 )
               ],

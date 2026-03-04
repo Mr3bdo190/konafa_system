@@ -7,10 +7,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # استخدام إصدارات مستقرة ومتوافقة مع فلاتر 3.19.0
   firebase_core: ^2.24.2
   firebase_auth: ^4.15.3
   cloud_firestore: ^4.13.6
+  google_sign_in: ^6.2.1 # مكتبة جوجل
   http: ^1.2.0
   image_picker: ^1.0.4
   provider: ^6.1.1
