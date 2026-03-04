@@ -36,8 +36,7 @@ jobs:
           sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
           sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
 
-          # 3. الحل الجديد: تحديث compileSdk لـ 35 لتوافق مكتبة image_picker
-          sed -i 's/flutter\.compileSdkVersion/35/g' android/app/build.gradle
+          # تم إزالة محاولة تحديث الـ compileSdk لـ 35
 
       - name: Install dependencies
         run: flutter pub get
