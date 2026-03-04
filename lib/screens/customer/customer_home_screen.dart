@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'menu_screen.dart';
+import 'cart_screen.dart';
+import 'customer_orders_screen.dart'; // استدعاء شاشة الطلبات
+import 'customer_profile_screen.dart'; // استدعاء شاشة الحساب
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -10,47 +14,29 @@ class CustomerHomeScreen extends StatefulWidget {
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _currentIndex = 0;
 
-  // دي الصفحات اللي هنتنقل بينها (مبدئياً هنحط نصوص مؤقتة لحد ما نصمم كل شاشة)
   final List<Widget> _pages = [
-    const Center(child: Text('شاشة المنيو والمنتجات (قريباً)', style: TextStyle(fontSize: 20, color: Colors.deepPurple))),
-    const Center(child: Text('سلة المشتريات (قريباً)', style: TextStyle(fontSize: 20, color: Colors.deepPurple))),
-    const Center(child: Text('تتبع طلباتي (قريباً)', style: TextStyle(fontSize: 20, color: Colors.deepPurple))),
-    const Center(child: Text('إعدادات حسابي (قريباً)', style: TextStyle(fontSize: 20, color: Colors.deepPurple))),
+    const CustomerMenuScreen(),
+    const CustomerCartScreen(),
+    const CustomerOrdersScreen(), // تم الربط
+    const CustomerProfileScreen(), // تم الربط
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3F8), // نفس الخلفية البيضاء المائلة للموف
+      backgroundColor: const Color(0xFFF5F3F8),
       appBar: AppBar(
         backgroundColor: Colors.white.withOpacity(0.8),
         elevation: 0,
         centerTitle: true,
-        title: const Text(
-          'نظام كنافة',
-          style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 24),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_active, color: Colors.deepPurple),
-            onPressed: () {},
-          )
-        ],
+        title: const Text('نظام كنافة', style: TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 24)),
       ),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: Stack(
           children: [
-            // أشكال جمالية في الخلفية
-            Positioned(
-              top: 50, right: -50,
-              child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.purple.shade100.withOpacity(0.5))),
-            ),
-            Positioned(
-              bottom: 100, left: -50,
-              child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.deepPurple.shade100.withOpacity(0.4))),
-            ),
-            // محتوى الشاشة المعروضة
+            Positioned(top: 50, right: -50, child: Container(width: 150, height: 150, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.purple.shade100.withOpacity(0.5)))),
+            Positioned(bottom: 100, left: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.deepPurple.shade100.withOpacity(0.4)))),
             _pages[_currentIndex],
           ],
         ),
@@ -58,11 +44,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
       bottomNavigationBar: Directionality(
         textDirection: TextDirection.rtl,
         child: Container(
-          decoration: BoxDecoration(
-            boxShadow: [
-              BoxShadow(color: Colors.deepPurple.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5)),
-            ],
-          ),
+          decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.deepPurple.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, -5))]),
           child: ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
             child: BottomNavigationBar(

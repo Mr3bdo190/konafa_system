@@ -1,14 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'screens/auth/login_screen.dart';
+import 'providers/cart_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const KonafaApp());
+  
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+      ],
+      child: const KonafaApp(),
+    ),
+  );
 }
 
 class KonafaApp extends StatelessWidget {
@@ -20,8 +30,8 @@ class KonafaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Konafa System',
       theme: ThemeData(
-        primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: Colors.grey[50],
+        primarySwatch: Colors.deepPurple,
+        fontFamily: 'Cairo', // لو حابب تضيف خط عربي بعدين
       ),
       home: const LoginScreen(),
     );

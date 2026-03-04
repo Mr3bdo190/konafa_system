@@ -2,11 +2,11 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'register_screen.dart';
-import '../customer/customer_home_screen.dart'; // استدعاء شاشة العميل
+import '../customer/customer_home_screen.dart';
+import '../admin/admin_home_screen.dart'; // استدعاء شاشة الأدمن
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -19,25 +19,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() async {
     setState(() => _isLoading = true);
-    final user = await _authService.loginUser(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
+    final user = await _authService.loginUser(_emailController.text.trim(), _passwordController.text.trim());
     setState(() => _isLoading = false);
 
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('مرحباً ${user.name}، تم الدخول بنجاح!')),
-      );
-      // الانتقال لشاشة العميل
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const CustomerHomeScreen()),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('مرحباً ${user.name}')));
+      // التوجيه الذكي بناءً على دور المستخدم (Role)
+      if (user.role == 'admin') {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
+      } else {
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('فشل تسجيل الدخول، تأكد من البيانات')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل تسجيل الدخول، تأكد من البيانات')));
     }
   }
 
@@ -71,9 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SizedBox(height: 15),
                             _buildTextField(_passwordController, 'كلمة المرور', Icons.lock, isPassword: true),
                             const SizedBox(height: 30),
-                            _isLoading
-                                ? const CircularProgressIndicator(color: Colors.deepPurple)
-                                : ElevatedButton(
+                            _isLoading ? const CircularProgressIndicator(color: Colors.deepPurple) : ElevatedButton(
                                     onPressed: _login,
                                     style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade400, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), minimumSize: const Size(double.infinity, 55)),
                                     child: const Text('دخول', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -100,10 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPassword = false}) {
     return TextField(
       controller: controller, obscureText: isPassword,
-      decoration: InputDecoration(
-        labelText: label, prefixIcon: Icon(icon, color: Colors.deepPurple.shade300), filled: true, fillColor: Colors.white.withOpacity(0.6),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, color: Colors.deepPurple.shade300), filled: true, fillColor: Colors.white.withOpacity(0.6), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
     );
   }
 }
