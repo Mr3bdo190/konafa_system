@@ -10,7 +10,7 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.1
   cloud_firestore: ^5.4.4
-  uploadcare_client: ^7.0.0
+  http: ^1.2.0 # مكتبة الاتصال بالسيرفر
   image_picker: ^1.0.4
   provider: ^6.1.1
   google_fonts: ^6.1.0
