@@ -13,30 +13,13 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   bool _isGoogleLoading = false;
 
-  void _login() async {
-    setState(() => _isLoading = true);
-    final user = await _authService.loginUser(_emailController.text.trim(), _passwordController.text.trim());
-    setState(() => _isLoading = false);
-
-    if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('مرحباً ${user.name}')));
-      if (user.role == 'admin') {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const AdminHomeScreen()));
-      } else {
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل تسجيل الدخول، تأكد من البيانات')));
-    }
-  }
-
-  void _googleSignIn() async {
+  void _handleGoogle() async {
     setState(() => _isGoogleLoading = true);
     String result = await _authService.signInWithGoogle();
     setState(() => _isGoogleLoading = false);
@@ -47,15 +30,15 @@ class _LoginScreenState extends State<LoginScreen> {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CustomerHomeScreen()));
     } else if (result == 'new_user') {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CompleteProfileScreen()));
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إلغاء تسجيل الدخول أو حدث خطأ')));
+    } else if (result != 'cancelled') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ: $result')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F3F8), 
+      backgroundColor: const Color(0xFFF5F3F8),
       body: Directionality(
         textDirection: TextDirection.rtl,
         child: Stack(
@@ -76,38 +59,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text('تسجيل الدخول', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                            const Text('نظام كنافة - دخول', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                             const SizedBox(height: 30),
-                            _buildTextField(_emailController, 'البريد الإلكتروني', Icons.email),
+                            _buildField(_emailController, 'البريد الإلكتروني', Icons.email),
                             const SizedBox(height: 15),
-                            _buildTextField(_passwordController, 'كلمة المرور', Icons.lock, isPassword: true),
+                            _buildField(_passwordController, 'كلمة المرور', Icons.lock, pass: true),
                             const SizedBox(height: 30),
-                            
-                            // زر الدخول العادي
-                            _isLoading 
-                                ? const CircularProgressIndicator(color: Colors.deepPurple) 
-                                : ElevatedButton(
-                                    onPressed: _login,
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple.shade400, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), minimumSize: const Size(double.infinity, 55)),
-                                    child: const Text('دخول', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
-                                  ),
+                            _isLoading ? const CircularProgressIndicator() : ElevatedButton(
+                              onPressed: () async {
+                                setState(() => _isLoading = true);
+                                final user = await _authService.loginUser(_emailController.text.trim(), _passwordController.text.trim());
+                                setState(() => _isLoading = false);
+                                if (user != null) {
+                                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => user.role == 'admin' ? const AdminHomeScreen() : const CustomerHomeScreen()));
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الدخول، تأكد من البيانات')));
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                              child: const Text('دخول', style: TextStyle(color: Colors.white, fontSize: 18)),
+                            ),
                             const SizedBox(height: 15),
-                            
-                            // زر الدخول بجوجل
-                            _isGoogleLoading
-                                ? const CircularProgressIndicator(color: Colors.redAccent)
-                                : ElevatedButton.icon(
-                                    onPressed: _googleSignIn,
-                                    icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
-                                    label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black, fontSize: 18, fontWeight: FontWeight.bold)),
-                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), minimumSize: const Size(double.infinity, 55)),
-                                  ),
-                            
-                            const SizedBox(height: 15),
-                            TextButton(
-                              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
-                              child: Text('ليس لديك حساب؟ إنشاء حساب', style: TextStyle(color: Colors.deepPurple.shade700, fontSize: 16)),
-                            )
+                            _isGoogleLoading ? const CircularProgressIndicator() : ElevatedButton.icon(
+                              onPressed: _handleGoogle,
+                              icon: Image.network('https://cdn-icons-png.flaticon.com/512/300/300221.png', height: 24),
+                              label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                            ),
+                            TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())), child: const Text('إنشاء حساب جديد', style: TextStyle(color: Colors.deepPurple))),
                           ],
                         ),
                       ),
@@ -122,10 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPassword = false}) {
-    return TextField(
-      controller: controller, obscureText: isPassword,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon, color: Colors.deepPurple.shade300), filled: true, fillColor: Colors.white.withOpacity(0.6), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)),
-    );
+  Widget _buildField(TextEditingController c, String l, IconData i, {bool pass = false}) {
+    return TextField(controller: c, obscureText: pass, decoration: InputDecoration(labelText: l, prefixIcon: Icon(i, color: Colors.deepPurple), filled: true, fillColor: Colors.white.withOpacity(0.5), border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none)));
   }
 }

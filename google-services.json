@@ -12,7 +12,20 @@
           "package_name": "com.example.konafa_system"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "44212119840-1b4hcv27baop1q49ta71gtv1ddldj08e.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.konafa_system",
+            "certificate_hash": "51db15a6b2c658da0bc60dc487a3c93c8eb5341c"
+          }
+        },
+        {
+          "client_id": "44212119840-6kmc73klbulki8t8e69mmdq1baq5h4du.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBQDw8xitgzsjDusCae1PvWRsk3K2ucCf0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "44212119840-6kmc73klbulki8t8e69mmdq1baq5h4du.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

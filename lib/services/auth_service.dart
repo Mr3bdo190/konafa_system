@@ -7,7 +7,6 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // تسجيل الإيميل العادي
   Future<UserModel?> loginUser(String email, String password) async {
     try {
       UserCredential cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
@@ -16,35 +15,26 @@ class AuthService {
     } catch (e) { print(e); } return null;
   }
 
-  Future<UserModel?> registerUser(String email, String password, String name, String phone, String address) async {
-    try {
-      UserCredential cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      UserModel newUser = UserModel(uid: cred.user!.uid, name: name, phone: phone, address: address, role: 'customer');
-      await _firestore.collection('Users').doc(cred.user!.uid).set(newUser.toMap());
-      return newUser;
-    } catch (e) { print(e); } return null;
-  }
-
-  // تسجيل جوجل
   Future<String> signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) return 'cancelled';
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken, idToken: googleAuth.idToken
+      );
       
       UserCredential cred = await _auth.signInWithCredential(credential);
-      
-      // فحص هل المستخدم موجود ولا جديد؟
       DocumentSnapshot doc = await _firestore.collection('Users').doc(cred.user!.uid).get();
+      
       if (doc.exists) {
-        return doc['role'] == 'admin' ? 'admin' : 'customer'; // قديم
+        return doc['role'] == 'admin' ? 'admin' : 'customer';
       } else {
-        return 'new_user'; // جديد، محتاج يكمل بياناته
+        return 'new_user';
       }
     } catch (e) {
-      print("Google Auth Error: $e"); return 'error';
+      return 'error: $e';
     }
   }
 }
