@@ -21,20 +21,47 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # العودة لإصدار فلاتر مستقر جداً يحل مشكلة SDK 35
+          flutter-version: '3.19.0'
           channel: 'stable'
 
-      - name: Create platform folders and fix versions
+      - name: Create platform folders and configure Android setup
         run: |
+          # 1. إنشاء مجلدات الأندرويد
           flutter create .
           git checkout lib/ pubspec.yaml || true
           
-          # 1. حل مشكلة الحد الأدنى للأندرويد لـ Firebase
-          sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
+          # 2. نقل المفتاح وملف جوجل للمكان الصحيح
+          cp my-key.jks android/app/
+          cp google-services.json android/app/
           
-          # 2. حل مشكلة توافق إصدار Kotlin مع Firebase
+          # 3. إعداد إصدارات الأندرويد لتتوافق مع فايربيز
+          sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
           sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
           sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
+
+          # 4. تفعيل خدمات جوجل (Google Services)
+          sed -i '/dependencies {/a \        classpath "com.google.gms:google-services:4.3.15"' android/build.gradle
+          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
+
+          # 5. الكود الإجباري لدمج مفتاح التوقيع (الضربة القاضية لخطأ 10)
+          cat << 'INNER_EOF' >> android/app/build.gradle
+
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("my-key.jks")
+                      storePassword "konafa123"
+                      keyAlias "konafa"
+                      keyPassword "konafa123"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                  }
+              }
+          }
+          INNER_EOF
 
       - name: Install dependencies
         run: flutter pub get
