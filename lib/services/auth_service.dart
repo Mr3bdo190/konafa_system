@@ -33,8 +33,6 @@ class AuthService {
       } else {
         return 'new_user';
       }
-    } catch (e) {
-      return 'error: $e';
-    }
+    } catch (e) { return 'error: $e'; }
   }
 }

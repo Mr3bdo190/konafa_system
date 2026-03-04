@@ -72,8 +72,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 setState(() => _isLoading = false);
                                 if (user != null) {
                                   Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => user.role == 'admin' ? const AdminHomeScreen() : const CustomerHomeScreen()));
-                                } else {
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فشل الدخول، تأكد من البيانات')));
                                 }
                               },
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
@@ -86,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               label: const Text('الدخول بحساب جوجل', style: TextStyle(color: Colors.black)),
                               style: ElevatedButton.styleFrom(backgroundColor: Colors.white, minimumSize: const Size(double.infinity, 55), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                             ),
-                            TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())), child: const Text('إنشاء حساب جديد', style: TextStyle(color: Colors.deepPurple))),
+                            TextButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen())), child: const Text('ليس لديك حساب؟ إنشاء حساب', style: TextStyle(color: Colors.deepPurple))),
                           ],
                         ),
                       ),
