@@ -16,7 +16,7 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
-          java-version: '17' # استخدام بيئة جافا مستقرة
+          java-version: '17'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
@@ -29,12 +29,15 @@ jobs:
           flutter create .
           git checkout lib/ pubspec.yaml || true
           
-          # 1. حل مشكلة الحد الأدنى للأندرويد (Min SDK)
+          # 1. حل مشكلة الحد الأدنى للأندرويد لـ Firebase
           sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
           
-          # 2. الحل الجذري لتوافق إصدار Kotlin مع أحدث حزم Firebase
+          # 2. حل مشكلة توافق إصدار Kotlin
           sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
           sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
+
+          # 3. الحل الجديد: تحديث compileSdk لـ 35 لتوافق مكتبة image_picker
+          sed -i 's/flutter\.compileSdkVersion/35/g' android/app/build.gradle
 
       - name: Install dependencies
         run: flutter pub get
