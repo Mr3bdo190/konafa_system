@@ -59,11 +59,11 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             children: [
               const CircleAvatar(radius: 50, backgroundColor: Colors.deepPurple, child: Icon(Icons.person, size: 50, color: Colors.white)),
               const SizedBox(height: 20),
-              _buildTextField('الاسم بالكامل', Icons.person, _nameCtrl),
+              TextField(controller: _nameCtrl, decoration: InputDecoration(labelText: 'الاسم', prefixIcon: const Icon(Icons.person, color: Colors.deepPurple), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none))),
               const SizedBox(height: 15),
-              _buildTextField('رقم الهاتف', Icons.phone, _phoneCtrl, isNumber: true),
+              TextField(controller: _phoneCtrl, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: 'رقم الهاتف', prefixIcon: const Icon(Icons.phone, color: Colors.deepPurple), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none))),
               const SizedBox(height: 15),
-              _buildTextField('العنوان التفصيلي', Icons.location_on, _addressCtrl, maxLines: 3),
+              TextField(controller: _addressCtrl, maxLines: 3, decoration: InputDecoration(labelText: 'العنوان', prefixIcon: const Icon(Icons.location_on, color: Colors.deepPurple), filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none))),
               const SizedBox(height: 30),
               _isLoading 
                 ? const CircularProgressIndicator()
@@ -75,21 +75,6 @@ class _CustomerProfileScreenState extends State<CustomerProfileScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildTextField(String label, IconData icon, TextEditingController controller, {bool isNumber = false, int maxLines = 1}) {
-    return TextField(
-      controller: controller,
-      keyboardType: isNumber ? TextInputType.phone : TextInputType.text,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: Colors.deepPurple),
-        filled: true, fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
-        shadowColor: Colors.grey.withOpacity(0.1), elevation: 2,
       ),
     );
   }
