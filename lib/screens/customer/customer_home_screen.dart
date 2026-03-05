@@ -15,43 +15,59 @@ class CustomerHomeScreen extends StatefulWidget {
 
 class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
-  String _selectedCategory = 'الكل';
-  final List<String> _categories = ['الكل', 'كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
-
-  // الصفحات الخاصة بالعميل
   final List<Widget> _pages = [
-    const MenuTab(), // واجهة المنيو (مدمجة بالأسفل)
-    const CustomerCartScreen(), // شاشة السلة
-    const CustomerOrdersScreen(), // شاشة تتبع الطلبات
+    const MenuTab(),
+    const CustomerCartScreen(),
+    const CustomerOrdersScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F3F8),
       body: _pages[_selectedIndex],
       bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(color: Colors.deepPurple.withOpacity(0.2), blurRadius: 20, offset: const Offset(0, -5)),
-          ],
-        ),
+        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.deepPurple.withOpacity(0.15), blurRadius: 30, offset: const Offset(0, -10))]),
         child: ClipRRect(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: BottomNavigationBar(
-              backgroundColor: Colors.white.withOpacity(0.9),
-              elevation: 0,
-              currentIndex: _selectedIndex,
-              selectedItemColor: Colors.deepPurple,
-              unselectedItemColor: Colors.grey,
+              backgroundColor: Colors.white.withOpacity(0.85),
+              elevation: 0, currentIndex: _selectedIndex,
+              selectedItemColor: Colors.deepPurple, unselectedItemColor: Colors.grey.shade400,
               selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
               onTap: (index) => setState(() => _selectedIndex = index),
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'المنيو'),
-                BottomNavigationBarItem(icon: Icon(Icons.shopping_cart), label: 'السلة'),
-                BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'طلباتي'),
+              items: [
+                const BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: 'المنيو'),
+                // عداد السلة الذكي
+                BottomNavigationBarItem(
+                  icon: StreamBuilder<QuerySnapshot>(
+                    stream: FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').snapshots(),
+                    builder: (context, snapshot) {
+                      int cartCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                      return Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.shopping_cart_rounded),
+                          if (cartCount > 0)
+                            Positioned(
+                              right: -5, top: -5,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(color: Colors.redAccent, shape: BoxShape.circle),
+                                child: Text('$cartCount', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            )
+                        ],
+                      );
+                    },
+                  ),
+                  label: 'السلة',
+                ),
+                const BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'طلباتي'),
               ],
             ),
           ),
@@ -62,11 +78,10 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
 }
 
 // ==========================================
-// تصميم واجهة المنيو الزجاجية (الرئيسية)
+// 1. شاشة المنيو المتقدمة (Sliver & Search)
 // ==========================================
 class MenuTab extends StatefulWidget {
   const MenuTab({super.key});
-
   @override
   State<MenuTab> createState() => _MenuTabState();
 }
@@ -74,173 +89,368 @@ class MenuTab extends StatefulWidget {
 class _MenuTabState extends State<MenuTab> {
   String _selectedCategory = 'الكل';
   final List<String> _categories = ['الكل', 'كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
+  String _searchQuery = '';
 
   @override
   Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Stack(
-        children: [
-          // الخلفية الدائرية الموف
-          Positioned(top: -50, right: -50, child: Container(width: 200, height: 200, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.purple.shade200.withOpacity(0.5)))),
-          Positioned(bottom: -100, left: -50, child: Container(width: 250, height: 250, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.deepPurple.shade300.withOpacity(0.4)))),
-          
-          SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // شريط العنوان
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('مرحباً بك في كنافة 😋', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-                      IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.redAccent),
-                        onPressed: () async {
-                          await FirebaseAuth.instance.signOut();
-                          if (!context.mounted) return;
-                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
-                        },
-                      )
-                    ],
+      child: CustomScrollView(
+        slivers: [
+          // رأس الصفحة المتحرك (Sliver AppBar)
+          SliverAppBar(
+            expandedHeight: 180.0,
+            floating: false,
+            pinned: true,
+            backgroundColor: Colors.deepPurple,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              title: const Text('قائمة كنافة 😋', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+              centerTitle: true,
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [Colors.deepPurple, Colors.purple.shade300], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                    ),
                   ),
-                ),
-                
-                // تصنيفات المنيو
-                SizedBox(
-                  height: 50,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 15),
-                    itemCount: _categories.length,
-                    itemBuilder: (context, index) {
-                      bool isSelected = _categories[index] == _selectedCategory;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedCategory = _categories[index]),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.symmetric(horizontal: 5),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: isSelected ? Colors.deepPurple : Colors.white.withOpacity(0.6),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isSelected ? Colors.deepPurple : Colors.white, width: 2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              _categories[index],
-                              style: TextStyle(color: isSelected ? Colors.white : Colors.deepPurple, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ),
+                  Positioned(right: -50, top: -50, child: Icon(Icons.cake, size: 200, color: Colors.white.withOpacity(0.1))),
+                  Positioned(left: -30, bottom: -20, child: Icon(Icons.local_cafe, size: 150, color: Colors.white.withOpacity(0.1))),
+                ],
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.white),
+                onPressed: () async {
+                  await FirebaseAuth.instance.signOut();
+                  if (!context.mounted) return;
+                  Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+                },
+              )
+            ],
+          ),
+
+          // شريط البحث والتصنيفات (ثابت عند النزول)
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _SliverAppBarDelegate(
+              minHeight: 130.0,
+              maxHeight: 130.0,
+              child: Container(
+                color: const Color(0xFFF5F3F8),
+                child: Column(
+                  children: [
+                    // شريط البحث
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(15, 15, 15, 5),
+                      child: TextField(
+                        onChanged: (value) => setState(() => _searchQuery = value),
+                        decoration: InputDecoration(
+                          hintText: 'نفسك في إيه النهاردة؟',
+                          prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                          filled: true, fillColor: Colors.white,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+                          shadowColor: Colors.grey.withOpacity(0.2), elevation: 5,
                         ),
-                      );
-                    },
-                  ),
-                ),
-                
-                const SizedBox(height: 15),
-
-                // عرض المنتجات بشكل آمن
-                Expanded(
-                  child: StreamBuilder(
-                    stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
-                    builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-                      if (snapshot.hasError) return const Center(child: Text('حدث خطأ في تحميل البيانات'));
-                      if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator(color: Colors.deepPurple));
-                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('المنيو فارغ حالياً', style: TextStyle(fontSize: 20, color: Colors.grey)));
-
-                      // فلترة المنتجات حسب التصنيف
-                      var products = snapshot.data!.docs.where((doc) {
-                        var data = doc.data() as Map<String, dynamic>;
-                        if (_selectedCategory == 'الكل') return true;
-                        return (data['category'] ?? '') == _selectedCategory;
-                      }).toList();
-
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(15),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.75, // لتجنب تداخل النصوص والصور
-                          crossAxisSpacing: 15,
-                          mainAxisSpacing: 15,
-                        ),
-                        itemCount: products.length,
+                      ),
+                    ),
+                    // التصنيفات
+                    SizedBox(
+                      height: 50,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        itemCount: _categories.length,
                         itemBuilder: (context, index) {
-                          var itemData = products[index].data() as Map<String, dynamic>;
-                          
-                          // الحماية القوية ضد أخطاء قاعدة البيانات (لمنع الشاشة الرمادية)
-                          String name = itemData.containsKey('name') ? itemData['name'] : 'بدون اسم';
-                          String image = itemData.containsKey('image') ? itemData['image'] : '';
-                          // تحويل السعر بأمان سواء كان int أو double
-                          double price = itemData.containsKey('price') ? (itemData['price'] is int ? (itemData['price'] as int).toDouble() : itemData['price']) : 0.0;
-
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.4),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Expanded(
-                                      child: image.isNotEmpty
-                                          ? Image.network(image, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported, size: 50, color: Colors.grey))
-                                          : const Icon(Icons.fastfood, size: 50, color: Colors.deepPurple),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(10.0),
-                                      child: Column(
-                                        children: [
-                                          Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple), maxLines: 1, overflow: TextOverflow.ellipsis),
-                                          const SizedBox(height: 5),
-                                          Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text('$price ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 15)),
-                                              InkWell(
-                                                onTap: () async {
-                                                  // إضافة للسلة
-                                                  String uid = FirebaseAuth.instance.currentUser!.uid;
-                                                  await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').add({
-                                                    'name': name,
-                                                    'price': price,
-                                                    'image': image,
-                                                    'quantity': 1,
-                                                  });
-                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تمت إضافة $name للسلة'), backgroundColor: Colors.green));
-                                                },
-                                                child: Container(
-                                                  padding: const EdgeInsets.all(5),
-                                                  decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(10)),
-                                                  child: const Icon(Icons.add_shopping_cart, color: Colors.white, size: 20),
-                                                ),
-                                              )
-                                            ],
-                                          )
-                                        ],
-                                      ),
-                                    )
-                                  ],
-                                ),
+                          bool isSelected = _categories[index] == _selectedCategory;
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedCategory = _categories[index]),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
+                              margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.deepPurple : Colors.white,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [if (isSelected) BoxShadow(color: Colors.deepPurple.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
+                                border: Border.all(color: isSelected ? Colors.deepPurple : Colors.grey.shade300, width: 1),
                               ),
+                              child: Center(child: Text(_categories[index], style: TextStyle(color: isSelected ? Colors.white : Colors.deepPurple, fontWeight: FontWeight.bold))),
                             ),
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
+
+          // شبكة المنتجات
+          StreamBuilder(
+            stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
+            builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SliverFillRemaining(child: Center(child: Text('المنيو فارغ')));
+
+              var products = snapshot.data!.docs.where((doc) {
+                var data = doc.data() as Map<String, dynamic>;
+                bool matchesCategory = _selectedCategory == 'الكل' || (data['category'] ?? '') == _selectedCategory;
+                bool matchesSearch = _searchQuery.isEmpty || (data['name'] ?? '').toString().toLowerCase().contains(_searchQuery.toLowerCase());
+                return matchesCategory && matchesSearch;
+              }).toList();
+
+              return SliverPadding(
+                padding: const EdgeInsets.all(15),
+                sliver: SliverGrid(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.7, crossAxisSpacing: 15, mainAxisSpacing: 15),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      var itemData = products[index].data() as Map<String, dynamic>;
+                      String docId = products[index].id;
+                      return ProductCard(itemData: itemData, docId: docId);
+                    },
+                    childCount: products.length,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// كلاس مساعد لتثبيت شريط البحث
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _SliverAppBarDelegate({required this.minHeight, required this.maxHeight, required this.child});
+  final double minHeight; final double maxHeight; final Widget child;
+  @override double get minExtent => minHeight;
+  @override double get maxExtent => maxHeight;
+  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => SizedBox.expand(child: child);
+  @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
+}
+
+// ==========================================
+// 2. كارت المنتج (مع تأثيرات بصرية والمفضلة)
+// ==========================================
+class ProductCard extends StatefulWidget {
+  final Map<String, dynamic> itemData;
+  final String docId;
+  const ProductCard({super.key, required this.itemData, required this.docId});
+
+  @override
+  State<ProductCard> createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+  bool isFavorite = false;
+
+  @override
+  Widget build(BuildContext context) {
+    String name = widget.itemData['name'] ?? 'بدون اسم';
+    String image = widget.itemData['image'] ?? '';
+    double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
+
+    return GestureDetector(
+      onTap: () {
+        // فتح شاشة التفاصيل بأنيميشن
+        Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(itemData: widget.itemData, docId: widget.docId)));
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white, borderRadius: BorderRadius.circular(25),
+          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 5))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // صورة المنتج مع أنيميشن (Hero)
+            Expanded(
+              flex: 3,
+              child: Stack(
+                children: [
+                  Hero(
+                    tag: 'image_${widget.docId}',
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                      child: image.isNotEmpty
+                          ? Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, size: 50, color: Colors.grey))
+                          : Container(color: Colors.purple.shade50, child: const Center(child: Icon(Icons.fastfood, size: 50, color: Colors.deepPurple))),
+                    ),
+                  ),
+                  // زر المفضلة
+                  Positioned(
+                    top: 10, right: 10,
+                    child: GestureDetector(
+                      onTap: () => setState(() => isFavorite = !isFavorite),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                        child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : Colors.grey, size: 20),
+                      ),
+                    ),
+                  )
+                ],
+              ),
+            ),
+            // تفاصيل وزر الإضافة
+            Expanded(
+              flex: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('$price ج', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple, fontSize: 16)),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.add, color: Colors.white, size: 18),
+                        )
+                      ],
+                    )
+                  ],
+                ),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// 3. شاشة تفاصيل المنتج (الجديدة كلياً VIP)
+// ==========================================
+class ProductDetailsScreen extends StatefulWidget {
+  final Map<String, dynamic> itemData;
+  final String docId;
+  const ProductDetailsScreen({super.key, required this.itemData, required this.docId});
+
+  @override
+  State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+}
+
+class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
+  int quantity = 1;
+
+  void _addToCart() async {
+    String uid = FirebaseAuth.instance.currentUser!.uid;
+    String name = widget.itemData['name'] ?? 'بدون اسم';
+    double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
+    String image = widget.itemData['image'] ?? '';
+
+    await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').add({
+      'name': name, 'price': price, 'image': image, 'quantity': quantity,
+    });
+    
+    if (!mounted) return;
+    Navigator.pop(context); // الرجوع للمنيو بعد الإضافة
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة $quantity من ($name) للسلة بنجاح! 🎉'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String name = widget.itemData['name'] ?? 'بدون اسم';
+    String image = widget.itemData['image'] ?? '';
+    double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
+    String desc = widget.itemData['description'] ?? 'أشهى وألذ الحلويات الشرقية، مصنوعة بحب وعناية لترضي ذوقك.';
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: Stack(
+          children: [
+            // الصورة العلوية الكبيرة
+            Positioned(
+              top: 0, left: 0, right: 0,
+              height: MediaQuery.of(context).size.height * 0.45,
+              child: Hero(
+                tag: 'image_${widget.docId}',
+                child: image.isNotEmpty
+                    ? Image.network(image, fit: BoxFit.cover)
+                    : Container(color: Colors.purple.shade100, child: const Icon(Icons.fastfood, size: 100, color: Colors.deepPurple)),
+              ),
+            ),
+            
+            // زر الرجوع
+            Positioned(
+              top: 40, right: 20,
+              child: IconButton(
+                icon: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white.withOpacity(0.8), shape: BoxShape.circle), child: const Icon(Icons.arrow_back_ios_new, color: Colors.black, size: 20)),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+
+            // تفاصيل المنتج (اللوحة البيضاء السفلية)
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.4,
+              left: 0, right: 0, bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.all(25),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87))),
+                        Text('${price * quantity} ج', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.deepPurple)),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    const Text('التفاصيل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+                    const SizedBox(height: 10),
+                    Text(desc, style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.5)),
+                    
+                    const Spacer(),
+
+                    // متحكم الكمية
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(onPressed: () => setState(() { if (quantity > 1) quantity--; }), icon: const Icon(Icons.remove_circle_outline, size: 35, color: Colors.deepPurple)),
+                        Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Text('$quantity', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold))),
+                        IconButton(onPressed: () => setState(() { quantity++; }), icon: const Icon(Icons.add_circle, size: 35, color: Colors.deepPurple)),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // زر الإضافة العريض
+                    ElevatedButton(
+                      onPressed: _addToCart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        minimumSize: const Size(double.infinity, 60),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        elevation: 5,
+                        shadowColor: Colors.deepPurple.withOpacity(0.5)
+                      ),
+                      child: const Text('إضافة إلى السلة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                    )
+                  ],
+                ),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
