@@ -42,7 +42,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
               onTap: (index) => setState(() => _selectedIndex = index),
               items: [
                 const BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: 'المنيو'),
-                // عداد السلة الذكي
                 BottomNavigationBarItem(
                   icon: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').snapshots(),
@@ -77,9 +76,6 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   }
 }
 
-// ==========================================
-// 1. شاشة المنيو المتقدمة (Sliver & Search)
-// ==========================================
 class MenuTab extends StatefulWidget {
   const MenuTab({super.key});
   @override
@@ -97,7 +93,6 @@ class _MenuTabState extends State<MenuTab> {
       textDirection: TextDirection.rtl,
       child: CustomScrollView(
         slivers: [
-          // رأس الصفحة المتحرك (Sliver AppBar)
           SliverAppBar(
             expandedHeight: 180.0,
             floating: false,
@@ -132,7 +127,6 @@ class _MenuTabState extends State<MenuTab> {
             ],
           ),
 
-          // شريط البحث والتصنيفات (ثابت عند النزول)
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverAppBarDelegate(
@@ -142,22 +136,26 @@ class _MenuTabState extends State<MenuTab> {
                 color: const Color(0xFFF5F3F8),
                 child: Column(
                   children: [
-                    // شريط البحث
+                    // تم إصلاح شريط البحث بوضعه داخل Container للظل
                     Padding(
                       padding: const EdgeInsets.fromLTRB(15, 15, 15, 5),
-                      child: TextField(
-                        onChanged: (value) => setState(() => _searchQuery = value),
-                        decoration: InputDecoration(
-                          hintText: 'نفسك في إيه النهاردة؟',
-                          prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
-                          filled: true, fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
-                          shadowColor: Colors.grey.withOpacity(0.2), elevation: 5,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 3))],
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: TextField(
+                          onChanged: (value) => setState(() => _searchQuery = value),
+                          decoration: InputDecoration(
+                            hintText: 'نفسك في إيه النهاردة؟',
+                            prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                            filled: true, fillColor: Colors.white,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
+                          ),
                         ),
                       ),
                     ),
-                    // التصنيفات
                     SizedBox(
                       height: 50,
                       child: ListView.builder(
@@ -190,7 +188,6 @@ class _MenuTabState extends State<MenuTab> {
             ),
           ),
 
-          // شبكة المنتجات
           StreamBuilder(
             stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
             builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
@@ -226,7 +223,6 @@ class _MenuTabState extends State<MenuTab> {
   }
 }
 
-// كلاس مساعد لتثبيت شريط البحث
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate({required this.minHeight, required this.maxHeight, required this.child});
   final double minHeight; final double maxHeight; final Widget child;
@@ -236,9 +232,6 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
 }
 
-// ==========================================
-// 2. كارت المنتج (مع تأثيرات بصرية والمفضلة)
-// ==========================================
 class ProductCard extends StatefulWidget {
   final Map<String, dynamic> itemData;
   final String docId;
@@ -259,7 +252,6 @@ class _ProductCardState extends State<ProductCard> {
 
     return GestureDetector(
       onTap: () {
-        // فتح شاشة التفاصيل بأنيميشن
         Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(itemData: widget.itemData, docId: widget.docId)));
       },
       child: Container(
@@ -270,7 +262,6 @@ class _ProductCardState extends State<ProductCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // صورة المنتج مع أنيميشن (Hero)
             Expanded(
               flex: 3,
               child: Stack(
@@ -284,7 +275,6 @@ class _ProductCardState extends State<ProductCard> {
                           : Container(color: Colors.purple.shade50, child: const Center(child: Icon(Icons.fastfood, size: 50, color: Colors.deepPurple))),
                     ),
                   ),
-                  // زر المفضلة
                   Positioned(
                     top: 10, right: 10,
                     child: GestureDetector(
@@ -299,7 +289,6 @@ class _ProductCardState extends State<ProductCard> {
                 ],
               ),
             ),
-            // تفاصيل وزر الإضافة
             Expanded(
               flex: 2,
               child: Padding(
@@ -331,9 +320,6 @@ class _ProductCardState extends State<ProductCard> {
   }
 }
 
-// ==========================================
-// 3. شاشة تفاصيل المنتج (الجديدة كلياً VIP)
-// ==========================================
 class ProductDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> itemData;
   final String docId;
@@ -357,7 +343,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     });
     
     if (!mounted) return;
-    Navigator.pop(context); // الرجوع للمنيو بعد الإضافة
+    Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة $quantity من ($name) للسلة بنجاح! 🎉'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
   }
 
@@ -374,7 +360,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // الصورة العلوية الكبيرة
             Positioned(
               top: 0, left: 0, right: 0,
               height: MediaQuery.of(context).size.height * 0.45,
@@ -385,8 +370,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     : Container(color: Colors.purple.shade100, child: const Icon(Icons.fastfood, size: 100, color: Colors.deepPurple)),
               ),
             ),
-            
-            // زر الرجوع
             Positioned(
               top: 40, right: 20,
               child: IconButton(
@@ -394,8 +377,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 onPressed: () => Navigator.pop(context),
               ),
             ),
-
-            // تفاصيل المنتج (اللوحة البيضاء السفلية)
             Positioned(
               top: MediaQuery.of(context).size.height * 0.4,
               left: 0, right: 0, bottom: 0,
@@ -422,7 +403,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     
                     const Spacer(),
 
-                    // متحكم الكمية
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -433,7 +413,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // زر الإضافة العريض
                     ElevatedButton(
                       onPressed: _addToCart,
                       style: ElevatedButton.styleFrom(
