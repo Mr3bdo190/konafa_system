@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../auth/login_screen.dart';
 import 'customer_cart_screen.dart';
 import 'customer_orders_screen.dart';
+import 'customer_profile_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -19,6 +20,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     const MenuTab(),
     const CustomerCartScreen(),
     const CustomerOrdersScreen(),
+    const CustomerProfileScreen(),
   ];
 
   @override
@@ -35,7 +37,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: BottomNavigationBar(
-              backgroundColor: Colors.white.withOpacity(0.85),
+              type: BottomNavigationBarType.fixed, backgroundColor: Colors.white.withOpacity(0.85),
               elevation: 0, currentIndex: _selectedIndex,
               selectedItemColor: Colors.deepPurple, unselectedItemColor: Colors.grey.shade400,
               selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
@@ -67,6 +69,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
                   label: 'السلة',
                 ),
                 const BottomNavigationBarItem(icon: Icon(Icons.receipt_long_rounded), label: 'طلباتي'),
+                const BottomNavigationBarItem(icon: Icon(Icons.person), label: 'حسابي'),
               ],
             ),
           ),

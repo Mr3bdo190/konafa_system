@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AdminMenuScreen extends StatefulWidget {
   const AdminMenuScreen({super.key});
@@ -9,21 +12,53 @@ class AdminMenuScreen extends StatefulWidget {
 }
 
 class _AdminMenuScreenState extends State<AdminMenuScreen> {
-  // القائمة دي لازم تكون نفس اللي عند العميل بالظبط
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
+  final String uploadcarePubKey = '39809a4a474e7c3b79e1'; // مفتاحك السحري
   
+  // دالة الرفع الأوتوماتيكي لـ Uploadcare
+  Future<void> _pickAndUploadImage(StateSetter setDialogState, TextEditingController imageCtrl) async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    
+    if (image != null) {
+      setDialogState(() => _isUploading = true); // تشغيل علامة التحميل
+      try {
+        var request = http.MultipartRequest('POST', Uri.parse('https://upload.uploadcare.com/base/'));
+        request.fields['UPLOADCARE_PUB_KEY'] = uploadcarePubKey;
+        request.fields['UPLOADCARE_STORE'] = '1';
+        
+        var bytes = await image.readAsBytes();
+        var multipartFile = http.MultipartFile.fromBytes('file', bytes, filename: image.name);
+        request.files.add(multipartFile);
+        
+        var response = await request.send();
+        if (response.statusCode == 200) {
+          var responseData = await response.stream.bytesToString();
+          var json = jsonDecode(responseData);
+          String fileUrl = 'https://ucarecdn.com/${json['file']}/'; // الرابط السريع
+          imageCtrl.text = fileUrl; // وضع الرابط في المربع تلقائياً
+        }
+      } catch (e) {
+        print("خطأ في الرفع: $e");
+      }
+      setDialogState(() => _isUploading = false); // إيقاف علامة التحميل
+    }
+  }
+
+  bool _isUploading = false; // متغير للتحكم في اللودينج داخل النافذة
+
   void _showAddEditDialog([DocumentSnapshot? document]) {
     final nameCtrl = TextEditingController(text: document != null ? document['name'] : '');
     final priceCtrl = TextEditingController(text: document != null ? document['price'].toString() : '');
     final imageCtrl = TextEditingController(text: document != null ? document['image'] : '');
     
-    // التأكد إن التصنيف المختار موجود في القائمة، وإلا نختار أول واحد
     String selectedCategory = (document != null && _categories.contains(document['category'])) 
         ? document['category'] 
         : _categories[0];
 
     showDialog(
       context: context,
+      barrierDismissible: false, // لمنع الإغلاق بالغلط أثناء الرفع
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -43,8 +78,31 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                     items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
                     onChanged: (val) => setDialogState(() => selectedCategory = val!),
                   ),
-                  const SizedBox(height: 10),
-                  TextField(controller: imageCtrl, decoration: const InputDecoration(labelText: 'رابط الصورة (URL)', prefixIcon: Icon(Icons.image))),
+                  const SizedBox(height: 15),
+                  
+                  // منطقة رفع الصورة السحرية
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: imageCtrl, 
+                          decoration: const InputDecoration(labelText: 'رابط الصورة', prefixIcon: Icon(Icons.link), filled: true, fillColor: Colors.white),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _isUploading 
+                          ? const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Colors.deepPurple))
+                          : Container(
+                              decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(15)),
+                              child: IconButton(
+                                icon: const Icon(Icons.add_photo_alternate, color: Colors.deepPurple, size: 30),
+                                tooltip: 'رفع صورة من الاستوديو',
+                                onPressed: () => _pickAndUploadImage(setDialogState, imageCtrl),
+                              ),
+                            )
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -52,10 +110,9 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(color: Colors.red))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: () async {
+                onPressed: _isUploading ? null : () async { // تعقيل الزر لو الصورة بتترفع
                   if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
 
-                  // السطر ده هو اللي بيحل المشكلة: توحيد المسميات (Keys) مع العميل
                   Map<String, dynamic> productData = {
                     'name': nameCtrl.text.trim(),
                     'price': double.tryParse(priceCtrl.text.trim()) ?? 0.0,
@@ -88,10 +145,10 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F3F8),
-        appBar: AppBar(title: const Text('إدارة المنيو'), backgroundColor: Colors.purple, centerTitle: true),
+        appBar: AppBar(title: const Text('إدارة المنيو'), backgroundColor: Colors.orange, centerTitle: true),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () => _showAddEditDialog(),
-          backgroundColor: Colors.purple,
+          backgroundColor: Colors.orange,
           icon: const Icon(Icons.add, color: Colors.white),
           label: const Text('إضافة منتج', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
@@ -99,7 +156,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
           stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
           builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لم تقم بإضافة أي منتجات بعد', style: TextStyle(fontSize: 18, color: Colors.grey)));
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('المنيو فارغ', style: TextStyle(fontSize: 18, color: Colors.grey)));
 
             return ListView.builder(
               padding: const EdgeInsets.all(15),
@@ -107,10 +164,6 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
               itemBuilder: (context, index) {
                 var doc = snapshot.data!.docs[index];
                 var data = doc.data() as Map<String, dynamic>;
-                
-                String name = data['name'] ?? 'بدون اسم';
-                String category = data['category'] ?? 'غير مصنف';
-                double price = num.tryParse(data['price'].toString())?.toDouble() ?? 0.0;
                 String image = data['image'] ?? '';
 
                 return Card(
@@ -122,11 +175,11 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                     leading: ClipRRect(
                       borderRadius: BorderRadius.circular(10),
                       child: image.isNotEmpty 
-                        ? Image.network(image, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.fastfood, size: 40, color: Colors.deepPurple))
-                        : const Icon(Icons.fastfood, size: 40, color: Colors.deepPurple),
+                        ? Image.network(image, width: 60, height: 60, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.fastfood, size: 40, color: Colors.orange))
+                        : const Icon(Icons.fastfood, size: 40, color: Colors.orange),
                     ),
-                    title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    subtitle: Text('$category \n$price ج.م', style: const TextStyle(color: Colors.deepPurple)),
+                    title: Text(data['name'] ?? 'بدون اسم', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    subtitle: Text('${data['category']} \n${data['price']} ج.م', style: const TextStyle(color: Colors.orange)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
