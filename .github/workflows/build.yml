@@ -7,93 +7,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
-
-      - name: Create platform folders and configure Android setup
-        run: |
-          # 1. إنشاء مجلدات الأندرويد
-          flutter create .
-          git checkout lib/ pubspec.yaml || true
-          
-          # 2. نقل المفتاح وملف جوجل للمكان الصحيح
-          cp my-key.jks android/app/
-          cp google-services.json android/app/
-          
-          # 3. إعداد إصدارات الأندرويد
-          sed -i 's/flutter\.minSdkVersion/23/g' android/app/build.gradle
-          sed -i -E 's/id "org\.jetbrains\.kotlin\.android" version "[^"]+"/id "org.jetbrains.kotlin.android" version "1.9.24"/' android/settings.gradle || true
-          sed -i -E "s/ext\.kotlin_version = '[^']+'/ext.kotlin_version = '1.9.24'/" android/build.gradle || true
-
-          # 4. الحل الجذري لإضافة جوجل (وضعها بالقوة في بداية ملف المشروع)
-          cat << 'GRADLE_EOF' > temp_build.gradle
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath "com.google.gms:google-services:4.3.15"
-              }
-          }
-          GRADLE_EOF
-          cat android/build.gradle >> temp_build.gradle
-          mv temp_build.gradle android/build.gradle
-
-          # 5. دمج مفتاح التوقيع الإجباري
-          cat << 'INNER_EOF' >> android/app/build.gradle
-
-          android {
-              signingConfigs {
-                  release {
-                      storeFile file("my-key.jks")
-                      storePassword "konafa123"
-                      keyAlias "konafa"
-                      keyPassword "konafa123"
-                  }
-              }
-              buildTypes {
-                  release {
-                      signingConfig signingConfigs.release
-                  }
-              }
-          }
-          INNER_EOF
-
-          # 6. تفعيل إضافة جوجل في نهاية ملف التطبيق
-          echo "apply plugin: 'com.google.gms.google-services'" >> android/app/build.gradle
-
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with: { distribution: 'zulu', java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: '3.19.0', channel: 'stable' }
+      
+      - name: Install Dependencies
         run: flutter pub get
-
+        
       - name: Build Web
         run: flutter build web
-
+        
       - name: Build APK
         run: flutter build apk --release
-
+        
       - name: Upload APK
         uses: actions/upload-artifact@v4
-        with:
-          name: release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
-
-      - name: Upload Web Build
+        with: { name: release-apk, path: build/app/outputs/flutter-apk/app-release.apk }
+        
+      - name: Upload Web
         uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: build/web
+        with: { name: web-build, path: build/web }

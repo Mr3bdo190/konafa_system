@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "44212119840",
+    "project_id": "konafasystem",
+    "storage_bucket": "konafasystem.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:44212119840:android:1f75856830c17e47674f45",
+        "android_client_info": {
+          "package_name": "com.example.konafa_system"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "44212119840-bberhjac6tiirjni82eiopb32cn3o4kf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.konafa_system",
+            "certificate_hash": "3f1d15c2f5167df5c7aa7ebb11f2b687d0941cca"
+          }
+        },
+        {
+          "client_id": "44212119840-6kmc73klbulki8t8e69mmdq1baq5h4du.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBQDw8xitgzsjDusCae1PvWRsk3K2ucCf0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "44212119840-6kmc73klbulki8t8e69mmdq1baq5h4du.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
