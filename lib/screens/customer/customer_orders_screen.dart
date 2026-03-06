@@ -1,10 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../models/order_model.dart';
 
 class CustomerOrdersScreen extends StatelessWidget {
   const CustomerOrdersScreen({super.key});
+
+  Widget _buildTimeline(String status) {
+    int step = status == 'pending' ? 1 : (status == 'accepted' ? 2 : (status == 'completed' ? 3 : 0));
+    if (status == 'cancelled') return const Center(child: Text('❌ تم إلغاء الطلب', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)));
+    
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildDot(step >= 1, 'تم الطلب'), _buildLine(step >= 2),
+        _buildDot(step >= 2, 'جاري التجهيز'), _buildLine(step >= 3),
+        _buildDot(step >= 3, 'مكتمل ✅'),
+      ],
+    );
+  }
+
+  Widget _buildDot(bool active, String label) {
+    return Column(
+      children: [
+        Container(width: 25, height: 25, decoration: BoxDecoration(color: active ? Colors.deepPurple : Colors.grey[300], shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))),
+        const SizedBox(height: 5),
+        Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: active ? Colors.deepPurple : Colors.grey)),
+      ],
+    );
+  }
+
+  Widget _buildLine(bool active) {
+    return Container(width: 40, height: 3, margin: const EdgeInsets.only(bottom: 20), color: active ? Colors.deepPurple : Colors.grey[300]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,56 +43,40 @@ class CustomerOrdersScreen extends StatelessWidget {
         backgroundColor: const Color(0xFFF5F3F8),
         appBar: AppBar(title: const Text('طلباتي'), backgroundColor: Colors.deepPurple, centerTitle: true, elevation: 0),
         body: StreamBuilder(
-          // شيلنا الـ orderBy عشان منعلمش مشكلة في فايربيز (وهنرتبهم في الكود تحت)
           stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: uid).snapshots(),
           builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لم تقم بأي طلبات بعد 📋', style: TextStyle(fontSize: 20, color: Colors.grey)));
-
-            // ترتيب الطلبات من الأحدث للأقدم محلياً (الحل السحري)
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
             var docs = snapshot.data!.docs.toList();
+            if (docs.isEmpty) return const Center(child: Text('لم تقم بأي طلبات بعد 📋', style: TextStyle(fontSize: 20, color: Colors.grey)));
+
             docs.sort((a, b) {
               var tA = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
               var tB = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
-              if (tA == null) return -1;
-              if (tB == null) return 1;
-              return tB.compareTo(tA);
+              return (tB ?? Timestamp.now()).compareTo(tA ?? Timestamp.now());
             });
 
             return ListView.builder(
-              padding: const EdgeInsets.all(15),
-              itemCount: docs.length,
+              padding: const EdgeInsets.all(15), itemCount: docs.length,
               itemBuilder: (context, index) {
                 var data = docs[index].data() as Map<String, dynamic>;
-                OrderModel order = OrderModel.fromMap(data);
-
-                Color statusColor = order.status == 'pending' ? Colors.orange : (order.status == 'accepted' ? Colors.blue : Colors.green);
-                String statusText = order.status == 'pending' ? 'قيد الانتظار' : (order.status == 'accepted' ? 'جاري التجهيز' : 'مكتمل');
-
+                List items = data['items'] ?? [];
                 return Card(
-                  margin: const EdgeInsets.only(bottom: 15),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  elevation: 3,
-                  child: ExpansionTile(
-                    title: Text('طلب #${order.orderId.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('الإجمالي: ${order.totalAmount} ج.م', style: const TextStyle(color: Colors.deepPurple)),
-                    trailing: Chip(label: Text(statusText, style: const TextStyle(color: Colors.white)), backgroundColor: statusColor),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(15),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('النوع: ${order.orderType == 'delivery' ? 'توصيل' : 'استلام'} (${order.deliveryDetails})', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const Divider(),
-                            ...List.generate(order.items.length, (i) {
-                              var item = order.items[i];
-                              return Text('- ${item['name']} (x${item['quantity']})');
-                            }),
-                          ],
-                        ),
-                      )
-                    ],
+                  margin: const EdgeInsets.only(bottom: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), elevation: 3,
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Text('طلب #${docs[index].id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text('${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple)),
+                        ]),
+                        const SizedBox(height: 15),
+                        _buildTimeline(data['status'] ?? 'pending'),
+                        const Divider(height: 30),
+                        ...items.map((item) => Text('- ${item['name']} (x${item['quantity']})', style: const TextStyle(color: Colors.black87))),
+                      ],
+                    ),
                   ),
                 );
               },
