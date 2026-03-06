@@ -13,15 +13,15 @@ class AdminMenuScreen extends StatefulWidget {
 
 class _AdminMenuScreenState extends State<AdminMenuScreen> {
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
-  final String uploadcarePubKey = '39809a4a474e7c3b79e1'; // مفتاحك السحري
-  
-  // دالة الرفع الأوتوماتيكي لـ Uploadcare
+  final String uploadcarePubKey = '39809a4a474e7c3b79e1';
+  bool _isUploading = false;
+
   Future<void> _pickAndUploadImage(StateSetter setDialogState, TextEditingController imageCtrl) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
     
     if (image != null) {
-      setDialogState(() => _isUploading = true); // تشغيل علامة التحميل
+      setDialogState(() => _isUploading = true);
       try {
         var request = http.MultipartRequest('POST', Uri.parse('https://upload.uploadcare.com/base/'));
         request.fields['UPLOADCARE_PUB_KEY'] = uploadcarePubKey;
@@ -35,17 +35,16 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
         if (response.statusCode == 200) {
           var responseData = await response.stream.bytesToString();
           var json = jsonDecode(responseData);
-          String fileUrl = 'https://ucarecdn.com/${json['file']}/'; // الرابط السريع
-          imageCtrl.text = fileUrl; // وضع الرابط في المربع تلقائياً
+          // الحل هنا: إضافة /-/preview/ عشان الصورة تظهر كصورة واضحة للمستخدم
+          String fileUrl = 'https://ucarecdn.com/${json['file']}/-/preview/'; 
+          imageCtrl.text = fileUrl;
         }
       } catch (e) {
         print("خطأ في الرفع: $e");
       }
-      setDialogState(() => _isUploading = false); // إيقاف علامة التحميل
+      setDialogState(() => _isUploading = false);
     }
   }
-
-  bool _isUploading = false; // متغير للتحكم في اللودينج داخل النافذة
 
   void _showAddEditDialog([DocumentSnapshot? document]) {
     final nameCtrl = TextEditingController(text: document != null ? document['name'] : '');
@@ -53,12 +52,11 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
     final imageCtrl = TextEditingController(text: document != null ? document['image'] : '');
     
     String selectedCategory = (document != null && _categories.contains(document['category'])) 
-        ? document['category'] 
-        : _categories[0];
+        ? document['category'] : _categories[0];
 
     showDialog(
       context: context,
-      barrierDismissible: false, // لمنع الإغلاق بالغلط أثناء الرفع
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
@@ -79,8 +77,6 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                     onChanged: (val) => setDialogState(() => selectedCategory = val!),
                   ),
                   const SizedBox(height: 15),
-                  
-                  // منطقة رفع الصورة السحرية
                   Row(
                     children: [
                       Expanded(
@@ -97,7 +93,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                               decoration: BoxDecoration(color: Colors.purple.shade50, borderRadius: BorderRadius.circular(15)),
                               child: IconButton(
                                 icon: const Icon(Icons.add_photo_alternate, color: Colors.deepPurple, size: 30),
-                                tooltip: 'رفع صورة من الاستوديو',
+                                tooltip: 'رفع صورة',
                                 onPressed: () => _pickAndUploadImage(setDialogState, imageCtrl),
                               ),
                             )
@@ -110,22 +106,19 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
               TextButton(onPressed: () => Navigator.pop(context), child: const Text('إلغاء', style: TextStyle(color: Colors.red))),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
-                onPressed: _isUploading ? null : () async { // تعقيل الزر لو الصورة بتترفع
+                onPressed: _isUploading ? null : () async {
                   if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
-
                   Map<String, dynamic> productData = {
                     'name': nameCtrl.text.trim(),
                     'price': double.tryParse(priceCtrl.text.trim()) ?? 0.0,
                     'category': selectedCategory,
                     'image': imageCtrl.text.trim(),
                   };
-
                   if (document == null) {
                     await FirebaseFirestore.instance.collection('Menu').add(productData);
                   } else {
                     await document.reference.update(productData);
                   }
-                  
                   if (!context.mounted) return;
                   Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ بنجاح!'), backgroundColor: Colors.green));

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../../models/order_model.dart'; // القالب الرسمي
+import '../../models/order_model.dart';
 
 class CustomerOrdersScreen extends StatelessWidget {
   const CustomerOrdersScreen({super.key});
@@ -14,19 +14,29 @@ class CustomerOrdersScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F3F8),
-        appBar: AppBar(title: const Text('طلباتي'), backgroundColor: Colors.deepPurple, centerTitle: true),
+        appBar: AppBar(title: const Text('طلباتي'), backgroundColor: Colors.deepPurple, centerTitle: true, elevation: 0),
         body: StreamBuilder(
-          stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: uid).orderBy('timestamp', descending: true).snapshots(),
+          // شيلنا الـ orderBy عشان منعلمش مشكلة في فايربيز (وهنرتبهم في الكود تحت)
+          stream: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: uid).snapshots(),
           builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
             if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('لم تقم بأي طلبات بعد 📋', style: TextStyle(fontSize: 20, color: Colors.grey)));
 
+            // ترتيب الطلبات من الأحدث للأقدم محلياً (الحل السحري)
+            var docs = snapshot.data!.docs.toList();
+            docs.sort((a, b) {
+              var tA = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+              var tB = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
+              if (tA == null) return -1;
+              if (tB == null) return 1;
+              return tB.compareTo(tA);
+            });
+
             return ListView.builder(
               padding: const EdgeInsets.all(15),
-              itemCount: snapshot.data!.docs.length,
+              itemCount: docs.length,
               itemBuilder: (context, index) {
-                // قراءة الطلب باستخدام القالب الرسمي
-                var data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+                var data = docs[index].data() as Map<String, dynamic>;
                 OrderModel order = OrderModel.fromMap(data);
 
                 Color statusColor = order.status == 'pending' ? Colors.orange : (order.status == 'accepted' ? Colors.blue : Colors.green);
