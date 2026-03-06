@@ -168,7 +168,8 @@ class _MenuTabState extends State<MenuTab> {
             ),
           ),
           StreamBuilder(
-            stream: FirebaseFirestore.instance.collection('Menu').where('isAvailable', isEqualTo: true).snapshots(),
+            // قمنا بإزالة الفلتر لعرض كل المنتجات (المتوفرة وغير المتوفرة)
+            stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
             builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SliverFillRemaining(child: Center(child: Text('المنيو فارغ')));
@@ -209,7 +210,7 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
 }
 
-// تصميم كارت المنتج متصل بفايربيز للمفضلة
+// تصميم كارت المنتج مع دعم حالة "نفذت الكمية"
 class ProductCard extends StatelessWidget {
   final Map<String, dynamic> itemData;
   final String docId;
@@ -220,6 +221,7 @@ class ProductCard extends StatelessWidget {
     String name = itemData['name'] ?? 'بدون اسم';
     String image = itemData['image'] ?? '';
     double price = num.tryParse(itemData['price'].toString())?.toDouble() ?? 0.0;
+    bool isAvailable = itemData['isAvailable'] ?? true; // التحقق من التوفر
     final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return GestureDetector(
@@ -237,9 +239,20 @@ class ProductCard extends StatelessWidget {
                     tag: 'image_$docId',
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-                      child: image.isNotEmpty && image.startsWith('http')
-                          ? Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, size: 50, color: Colors.grey))
-                          : Container(color: Colors.purple.shade50, child: const Center(child: Icon(Icons.fastfood, size: 50, color: Colors.deepPurple))),
+                      child: ColorFiltered(
+                        // جعل الصورة باهتة (أبيض وأسود) لو غير متوفر
+                        colorFilter: isAvailable 
+                            ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                            : const ColorFilter.matrix(<double>[
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0,      0,      0,      1, 0,
+                              ]),
+                        child: image.isNotEmpty && image.startsWith('http')
+                            ? Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, size: 50, color: Colors.grey))
+                            : Container(color: Colors.purple.shade50, child: const Center(child: Icon(Icons.fastfood, size: 50, color: Colors.deepPurple))),
+                      ),
                     ),
                   ),
                   Positioned(
@@ -275,13 +288,17 @@ class ProductCard extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                    Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isAvailable ? Colors.black87 : Colors.grey), maxLines: 1, overflow: TextOverflow.ellipsis),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('$price ج', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple, fontSize: 16)),
-                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 18))
-                      ],
+                      children: isAvailable 
+                        ? [
+                            Text('$price ج', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple, fontSize: 16)),
+                            Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 18))
+                          ]
+                        : [ // تغيير شكل السعر والزرار لو مش متوفر
+                            const Text('نفذت الكمية ❌', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red, fontSize: 12)),
+                          ],
                     )
                   ],
                 ),
@@ -321,6 +338,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     String image = widget.itemData['image'] ?? '';
     double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
     String desc = widget.itemData['description'] ?? 'أشهى وألذ الحلويات الشرقية، مصنوعة بحب وعناية لترضي ذوقك.';
+    bool isAvailable = widget.itemData['isAvailable'] ?? true; // التحقق من التوفر في صفحة التفاصيل
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -332,9 +350,19 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               top: 0, left: 0, right: 0, height: MediaQuery.of(context).size.height * 0.45,
               child: Hero(
                 tag: 'image_${widget.docId}',
-                child: image.isNotEmpty && image.startsWith('http')
-                    ? Image.network(image, fit: BoxFit.cover)
-                    : Container(color: Colors.purple.shade100, child: const Icon(Icons.fastfood, size: 100, color: Colors.deepPurple)),
+                child: ColorFiltered(
+                  colorFilter: isAvailable 
+                      ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                      : const ColorFilter.matrix(<double>[
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0.2126, 0.7152, 0.0722, 0, 0,
+                          0,      0,      0,      1, 0,
+                        ]),
+                  child: image.isNotEmpty && image.startsWith('http')
+                      ? Image.network(image, fit: BoxFit.cover)
+                      : Container(color: Colors.purple.shade100, child: const Icon(Icons.fastfood, size: 100, color: Colors.deepPurple)),
+                ),
               ),
             ),
             Positioned(
@@ -352,15 +380,17 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Expanded(child: Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87))),
-                        Text('${price * quantity} ج', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.deepPurple)),
+                        Expanded(child: Text(name, style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: isAvailable ? Colors.black87 : Colors.grey))),
+                        Text(isAvailable ? '${price * quantity} ج' : 'مباع', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: isAvailable ? Colors.deepPurple : Colors.red)),
                     ]),
                     const SizedBox(height: 15),
                     const Text('التفاصيل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
                     const SizedBox(height: 10),
                     Text(desc, style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.5)),
                     const Spacer(),
-                    Row(
+                    
+                    // إخفاء متحكمات الكمية لو مش متوفر
+                    if (isAvailable) Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         IconButton(onPressed: () => setState(() { if (quantity > 1) quantity--; }), icon: const Icon(Icons.remove_circle_outline, size: 35, color: Colors.deepPurple)),
@@ -369,10 +399,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
+                    
+                    // تغيير شكل زر الإضافة لو مش متوفر ومنع الضغط عليه
                     ElevatedButton(
-                      onPressed: _addToCart,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), elevation: 5, shadowColor: Colors.deepPurple.withOpacity(0.5)),
-                      child: const Text('إضافة إلى السلة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
+                      onPressed: isAvailable ? _addToCart : null, // null تعني أن الزر مقفل
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isAvailable ? Colors.deepPurple : Colors.grey.shade400, 
+                        minimumSize: const Size(double.infinity, 60), 
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), 
+                        elevation: isAvailable ? 5 : 0, 
+                        shadowColor: Colors.deepPurple.withOpacity(0.5)
+                      ),
+                      child: Text(isAvailable ? 'إضافة إلى السلة' : 'عذراً، نفذت الكمية', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                     )
                   ],
                 ),
