@@ -14,11 +14,9 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
   bool _isUploading = false;
   
-  // بيانات حسابك في Cloudinary اللي جبناها من الصور
   final String cloudName = 'dtrlgbtss';
   final String uploadPreset = 'konafa_system';
 
-  // دالة الرفع المباشر لـ Cloudinary
   Future<void> _pickAndUploadImage(StateSetter setDialogState, TextEditingController imageCtrl) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
@@ -31,18 +29,26 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
         request.files.add(await http.MultipartFile.fromPath('file', image.path));
         
         var response = await request.send();
+        var responseData = await response.stream.bytesToString();
+        
         if (response.statusCode == 200) {
-          var responseData = await response.stream.bytesToString();
           var json = jsonDecode(responseData);
-          
-          // سحب الرابط الآمن والنظيف من Cloudinary
           String fileUrl = json['secure_url']; 
-          imageCtrl.text = fileUrl; // هيحط الرابط في المربع أوتوماتيك
+          imageCtrl.text = fileUrl;
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الصورة بنجاح! ✅'), backgroundColor: Colors.green));
+          }
         } else {
-          print("خطأ في رفع الصورة: ${response.statusCode}");
+          // لو في مشكلة، هيطلعلك رسالة حمراء فيها تفاصيل الخطأ عشان نعرف نحله
+          print("Cloudinary Error: $responseData");
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الرفع ❌: ${response.statusCode}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
+          }
         }
       } catch (e) {
-        print("خطأ: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الاتصال: $e'), backgroundColor: Colors.red));
+        }
       }
       setDialogState(() => _isUploading = false);
     }
