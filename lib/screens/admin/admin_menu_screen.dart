@@ -12,29 +12,37 @@ class AdminMenuScreen extends StatefulWidget {
 
 class _AdminMenuScreenState extends State<AdminMenuScreen> {
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
-  final String uploadcarePubKey = '39809a4a474e7c3b79e1';
   bool _isUploading = false;
+  
+  // بيانات حسابك في Cloudinary اللي جبناها من الصور
+  final String cloudName = 'dtrlgbtss';
+  final String uploadPreset = 'konafa_system';
 
+  // دالة الرفع المباشر لـ Cloudinary
   Future<void> _pickAndUploadImage(StateSetter setDialogState, TextEditingController imageCtrl) async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+    
     if (image != null) {
       setDialogState(() => _isUploading = true);
       try {
-        var request = http.MultipartRequest('POST', Uri.parse('https://upload.uploadcare.com/base/'));
-        request.fields['UPLOADCARE_PUB_KEY'] = uploadcarePubKey;
-        request.fields['UPLOADCARE_STORE'] = '1';
+        var request = http.MultipartRequest('POST', Uri.parse('https://api.cloudinary.com/v1_1/$cloudName/image/upload'));
+        request.fields['upload_preset'] = uploadPreset;
         request.files.add(await http.MultipartFile.fromPath('file', image.path));
+        
         var response = await request.send();
         if (response.statusCode == 200) {
           var responseData = await response.stream.bytesToString();
           var json = jsonDecode(responseData);
-          // إصلاح الصور: استخدام رابط محسن ومصغر لضمان العرض
-          String fileUrl = 'https://ucarecdn.com/${json['file']}/-/preview/500x500/'; 
-          imageCtrl.text = fileUrl;
+          
+          // سحب الرابط الآمن والنظيف من Cloudinary
+          String fileUrl = json['secure_url']; 
+          imageCtrl.text = fileUrl; // هيحط الرابط في المربع أوتوماتيك
+        } else {
+          print("خطأ في رفع الصورة: ${response.statusCode}");
         }
       } catch (e) {
-        print("Error: $e");
+        print("خطأ: $e");
       }
       setDialogState(() => _isUploading = false);
     }
