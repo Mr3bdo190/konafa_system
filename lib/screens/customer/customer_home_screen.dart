@@ -6,6 +6,7 @@ import '../auth/login_screen.dart';
 import 'customer_cart_screen.dart';
 import 'customer_orders_screen.dart';
 import 'customer_profile_screen.dart';
+import 'customer_favorites_screen.dart';
 
 class CustomerHomeScreen extends StatefulWidget {
   const CustomerHomeScreen({super.key});
@@ -18,6 +19,7 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
   int _selectedIndex = 0;
   final List<Widget> _pages = [
     const MenuTab(),
+    const CustomerFavoritesScreen(),
     const CustomerCartScreen(),
     const CustomerOrdersScreen(),
     const CustomerProfileScreen(),
@@ -37,13 +39,16 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
             child: BottomNavigationBar(
-              type: BottomNavigationBarType.fixed, backgroundColor: Colors.white.withOpacity(0.85),
+              type: BottomNavigationBarType.fixed,
+              backgroundColor: Colors.white.withOpacity(0.9),
               elevation: 0, currentIndex: _selectedIndex,
               selectedItemColor: Colors.deepPurple, unselectedItemColor: Colors.grey.shade400,
-              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+              selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+              unselectedLabelStyle: const TextStyle(fontSize: 10),
               onTap: (index) => setState(() => _selectedIndex = index),
               items: [
                 const BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu_rounded), label: 'المنيو'),
+                const BottomNavigationBarItem(icon: Icon(Icons.favorite), label: 'مفضلاتي'),
                 BottomNavigationBarItem(
                   icon: StreamBuilder<QuerySnapshot>(
                     stream: FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').snapshots(),
@@ -97,22 +102,15 @@ class _MenuTabState extends State<MenuTab> {
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 180.0,
-            floating: false,
-            pinned: true,
-            backgroundColor: Colors.deepPurple,
-            elevation: 0,
+            expandedHeight: 180.0, floating: false, pinned: true,
+            backgroundColor: Colors.deepPurple, elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               title: const Text('قائمة كنافة 😋', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
               centerTitle: true,
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [Colors.deepPurple, Colors.purple.shade300], begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    ),
-                  ),
+                  Container(decoration: BoxDecoration(gradient: LinearGradient(colors: [Colors.deepPurple, Colors.purple.shade300], begin: Alignment.topLeft, end: Alignment.bottomRight))),
                   Positioned(right: -50, top: -50, child: Icon(Icons.cake, size: 200, color: Colors.white.withOpacity(0.1))),
                   Positioned(left: -30, bottom: -20, child: Icon(Icons.local_cafe, size: 150, color: Colors.white.withOpacity(0.1))),
                 ],
@@ -129,56 +127,35 @@ class _MenuTabState extends State<MenuTab> {
               )
             ],
           ),
-
           SliverPersistentHeader(
             pinned: true,
             delegate: _SliverAppBarDelegate(
-              minHeight: 130.0,
-              maxHeight: 130.0,
+              minHeight: 130.0, maxHeight: 130.0,
               child: Container(
                 color: const Color(0xFFF5F3F8),
                 child: Column(
                   children: [
-                    // تم إصلاح شريط البحث بوضعه داخل Container للظل
                     Padding(
                       padding: const EdgeInsets.fromLTRB(15, 15, 15, 5),
                       child: Container(
-                        decoration: BoxDecoration(
-                          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 3))],
-                          borderRadius: BorderRadius.circular(25),
-                        ),
+                        decoration: BoxDecoration(boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 3))], borderRadius: BorderRadius.circular(25)),
                         child: TextField(
                           onChanged: (value) => setState(() => _searchQuery = value),
-                          decoration: InputDecoration(
-                            hintText: 'نفسك في إيه النهاردة؟',
-                            prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
-                            filled: true, fillColor: Colors.white,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none),
-                          ),
+                          decoration: InputDecoration(hintText: 'نفسك في إيه النهاردة؟', prefixIcon: const Icon(Icons.search, color: Colors.deepPurple), filled: true, fillColor: Colors.white, contentPadding: const EdgeInsets.symmetric(vertical: 0), border: OutlineInputBorder(borderRadius: BorderRadius.circular(25), borderSide: BorderSide.none)),
                         ),
                       ),
                     ),
                     SizedBox(
                       height: 50,
                       child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        itemCount: _categories.length,
+                        scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 10), itemCount: _categories.length,
                         itemBuilder: (context, index) {
                           bool isSelected = _categories[index] == _selectedCategory;
                           return GestureDetector(
                             onTap: () => setState(() => _selectedCategory = _categories[index]),
                             child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5),
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              decoration: BoxDecoration(
-                                color: isSelected ? Colors.deepPurple : Colors.white,
-                                borderRadius: BorderRadius.circular(20),
-                                boxShadow: [if (isSelected) BoxShadow(color: Colors.deepPurple.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))],
-                                border: Border.all(color: isSelected ? Colors.deepPurple : Colors.grey.shade300, width: 1),
-                              ),
+                              duration: const Duration(milliseconds: 300), margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 5), padding: const EdgeInsets.symmetric(horizontal: 20),
+                              decoration: BoxDecoration(color: isSelected ? Colors.deepPurple : Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [if (isSelected) BoxShadow(color: Colors.deepPurple.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))], border: Border.all(color: isSelected ? Colors.deepPurple : Colors.grey.shade300, width: 1)),
                               child: Center(child: Text(_categories[index], style: TextStyle(color: isSelected ? Colors.white : Colors.deepPurple, fontWeight: FontWeight.bold))),
                             ),
                           );
@@ -190,9 +167,8 @@ class _MenuTabState extends State<MenuTab> {
               ),
             ),
           ),
-
           StreamBuilder(
-            stream: FirebaseFirestore.instance.collection('Menu').snapshots(),
+            stream: FirebaseFirestore.instance.collection('Menu').where('isAvailable', isEqualTo: true).snapshots(),
             builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) return const SliverFillRemaining(child: Center(child: CircularProgressIndicator()));
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const SliverFillRemaining(child: Center(child: Text('المنيو فارغ')));
@@ -213,8 +189,7 @@ class _MenuTabState extends State<MenuTab> {
                       var itemData = products[index].data() as Map<String, dynamic>;
                       String docId = products[index].id;
                       return ProductCard(itemData: itemData, docId: docId);
-                    },
-                    childCount: products.length,
+                    }, childCount: products.length,
                   ),
                 ),
               );
@@ -229,39 +204,28 @@ class _MenuTabState extends State<MenuTab> {
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
   _SliverAppBarDelegate({required this.minHeight, required this.maxHeight, required this.child});
   final double minHeight; final double maxHeight; final Widget child;
-  @override double get minExtent => minHeight;
-  @override double get maxExtent => maxHeight;
+  @override double get minExtent => minHeight; @override double get maxExtent => maxHeight;
   @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) => SizedBox.expand(child: child);
   @override bool shouldRebuild(_SliverAppBarDelegate oldDelegate) => maxHeight != oldDelegate.maxHeight || minHeight != oldDelegate.minHeight || child != oldDelegate.child;
 }
 
-class ProductCard extends StatefulWidget {
+// تصميم كارت المنتج متصل بفايربيز للمفضلة
+class ProductCard extends StatelessWidget {
   final Map<String, dynamic> itemData;
   final String docId;
   const ProductCard({super.key, required this.itemData, required this.docId});
 
   @override
-  State<ProductCard> createState() => _ProductCardState();
-}
-
-class _ProductCardState extends State<ProductCard> {
-  bool isFavorite = false;
-
-  @override
   Widget build(BuildContext context) {
-    String name = widget.itemData['name'] ?? 'بدون اسم';
-    String image = widget.itemData['image'] ?? '';
-    double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
+    String name = itemData['name'] ?? 'بدون اسم';
+    String image = itemData['image'] ?? '';
+    double price = num.tryParse(itemData['price'].toString())?.toDouble() ?? 0.0;
+    final uid = FirebaseAuth.instance.currentUser!.uid;
 
     return GestureDetector(
-      onTap: () {
-        Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(itemData: widget.itemData, docId: widget.docId)));
-      },
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProductDetailsScreen(itemData: itemData, docId: docId))),
       child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(25),
-          boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 5))],
-        ),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(25), boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.15), blurRadius: 15, offset: const Offset(0, 5))]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -270,23 +234,35 @@ class _ProductCardState extends State<ProductCard> {
               child: Stack(
                 children: [
                   Hero(
-                    tag: 'image_${widget.docId}',
+                    tag: 'image_$docId',
                     child: ClipRRect(
                       borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
-                      child: image.isNotEmpty
+                      child: image.isNotEmpty && image.startsWith('http')
                           ? Image.network(image, fit: BoxFit.cover, width: double.infinity, errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, size: 50, color: Colors.grey))
                           : Container(color: Colors.purple.shade50, child: const Center(child: Icon(Icons.fastfood, size: 50, color: Colors.deepPurple))),
                     ),
                   ),
                   Positioned(
                     top: 10, right: 10,
-                    child: GestureDetector(
-                      onTap: () => setState(() => isFavorite = !isFavorite),
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
-                        child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : Colors.grey, size: 20),
-                      ),
+                    child: StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance.collection('Users').doc(uid).collection('Favorites').doc(docId).snapshots(),
+                      builder: (context, snapshot) {
+                        bool isFavorite = snapshot.hasData && snapshot.data!.exists;
+                        return GestureDetector(
+                          onTap: () async {
+                            if (isFavorite) {
+                              await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Favorites').doc(docId).delete();
+                            } else {
+                              await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Favorites').doc(docId).set(itemData);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(color: Colors.white.withOpacity(0.9), shape: BoxShape.circle),
+                            child: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : Colors.grey, size: 20),
+                          ),
+                        );
+                      }
                     ),
                   )
                 ],
@@ -297,19 +273,14 @@ class _ProductCardState extends State<ProductCard> {
               child: Padding(
                 padding: const EdgeInsets.all(12.0),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('$price ج', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple, fontSize: 16)),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(12)),
-                          child: const Icon(Icons.add, color: Colors.white, size: 18),
-                        )
+                        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.add, color: Colors.white, size: 18))
                       ],
                     )
                   ],
@@ -327,9 +298,7 @@ class ProductDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> itemData;
   final String docId;
   const ProductDetailsScreen({super.key, required this.itemData, required this.docId});
-
-  @override
-  State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
+  @override State<ProductDetailsScreen> createState() => _ProductDetailsScreenState();
 }
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
@@ -341,12 +310,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     double price = num.tryParse(widget.itemData['price'].toString())?.toDouble() ?? 0.0;
     String image = widget.itemData['image'] ?? '';
 
-    await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').add({
-      'name': name, 'price': price, 'image': image, 'quantity': quantity,
-    });
-    
-    if (!mounted) return;
-    Navigator.pop(context);
+    await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').add({'name': name, 'price': price, 'image': image, 'quantity': quantity});
+    if (!mounted) return; Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم إضافة $quantity من ($name) للسلة بنجاح! 🎉'), backgroundColor: Colors.green, behavior: SnackBarBehavior.floating));
   }
 
@@ -364,11 +329,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         body: Stack(
           children: [
             Positioned(
-              top: 0, left: 0, right: 0,
-              height: MediaQuery.of(context).size.height * 0.45,
+              top: 0, left: 0, right: 0, height: MediaQuery.of(context).size.height * 0.45,
               child: Hero(
                 tag: 'image_${widget.docId}',
-                child: image.isNotEmpty
+                child: image.isNotEmpty && image.startsWith('http')
                     ? Image.network(image, fit: BoxFit.cover)
                     : Container(color: Colors.purple.shade100, child: const Icon(Icons.fastfood, size: 100, color: Colors.deepPurple)),
               ),
@@ -381,31 +345,21 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
               ),
             ),
             Positioned(
-              top: MediaQuery.of(context).size.height * 0.4,
-              left: 0, right: 0, bottom: 0,
+              top: MediaQuery.of(context).size.height * 0.4, left: 0, right: 0, bottom: 0,
               child: Container(
-                padding: const EdgeInsets.all(25),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-                ),
+                padding: const EdgeInsets.all(25), decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(40))),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                         Expanded(child: Text(name, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.black87))),
                         Text('${price * quantity} ج', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.deepPurple)),
-                      ],
-                    ),
+                    ]),
                     const SizedBox(height: 15),
                     const Text('التفاصيل', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
                     const SizedBox(height: 10),
                     Text(desc, style: const TextStyle(fontSize: 16, color: Colors.grey, height: 1.5)),
-                    
                     const Spacer(),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -415,16 +369,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-
                     ElevatedButton(
                       onPressed: _addToCart,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        minimumSize: const Size(double.infinity, 60),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        elevation: 5,
-                        shadowColor: Colors.deepPurple.withOpacity(0.5)
-                      ),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, minimumSize: const Size(double.infinity, 60), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), elevation: 5, shadowColor: Colors.deepPurple.withOpacity(0.5)),
                       child: const Text('إضافة إلى السلة', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white)),
                     )
                   ],
