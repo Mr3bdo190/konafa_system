@@ -14,7 +14,8 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
   bool _isUploading = false;
   
-  final String cloudName = 'dtrlgbtss';
+  // تم تصحيح اسم السحابة بناءً على الصورة (t بدل l)
+  final String cloudName = 'dtrtgbtss';
   final String uploadPreset = 'konafa_system';
 
   Future<void> _pickAndUploadImage(StateSetter setDialogState, TextEditingController imageCtrl) async {
@@ -39,7 +40,6 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الصورة بنجاح! ✅'), backgroundColor: Colors.green));
           }
         } else {
-          // لو في مشكلة، هيطلعلك رسالة حمراء فيها تفاصيل الخطأ عشان نعرف نحله
           print("Cloudinary Error: $responseData");
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الرفع ❌: ${response.statusCode}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
