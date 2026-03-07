@@ -58,25 +58,65 @@ class CustomerOrdersScreen extends StatelessWidget {
             return ListView.builder(
               padding: const EdgeInsets.all(15), itemCount: docs.length,
               itemBuilder: (context, index) {
-                var data = docs[index].data() as Map<String, dynamic>;
+                var doc = docs[index];
+                var data = doc.data() as Map<String, dynamic>;
                 List items = data['items'] ?? [];
+                
                 return Card(
                   margin: const EdgeInsets.only(bottom: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                          Text('طلب #${docs[index].id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                          Text('${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple)),
-                        ]),
-                        const SizedBox(height: 15),
-                        _buildTimeline(data['status'] ?? 'pending'),
-                        const Divider(height: 30),
-                        ...items.map((item) => Text('- ${item['name']} (x${item['quantity']})', style: const TextStyle(color: Colors.black87))),
-                      ],
+                  child: ExpansionTile(
+                    title: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                      Text('طلب #${doc.id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text('${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.deepPurple)),
+                    ]),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: _buildTimeline(data['status'] ?? 'pending'),
                     ),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(15),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            ...items.map((item) => Text('- ${item['name']} (x${item['quantity']})', style: const TextStyle(color: Colors.black87))),
+                            
+                            // نظام التقييم يظهر فقط لو الطلب مكتمل
+                            if (data['status'] == 'completed') ...[
+                              const Divider(height: 30),
+                              Center(
+                                child: data['rating'] == null 
+                                ? Column(
+                                    children: [
+                                      const Text('ما رأيك في الأوردر؟', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: List.generate(5, (starIndex) => IconButton(
+                                          icon: const Icon(Icons.star_border, color: Colors.orange, size: 35),
+                                          onPressed: () {
+                                            doc.reference.update({'rating': starIndex + 1});
+                                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('شكراً لتقييمك! ❤️'), backgroundColor: Colors.green));
+                                          },
+                                        )),
+                                      ),
+                                    ],
+                                  )
+                                : Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Text('تقييمك: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                      ...List.generate(5, (starIndex) => Icon(
+                                        starIndex < (data['rating'] as int) ? Icons.star : Icons.star_border, 
+                                        color: Colors.orange, size: 20
+                                      ))
+                                    ],
+                                  )
+                              )
+                            ]
+                          ],
+                        ),
+                      )
+                    ],
                   ),
                 );
               },

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 
 class AdminOrdersScreen extends StatelessWidget {
   const AdminOrdersScreen({super.key});
@@ -20,11 +23,7 @@ class AdminOrdersScreen extends StatelessWidget {
             ),
           ),
           body: const TabBarView(
-            children: [
-              OrdersList(statusFilter: 'pending'),
-              OrdersList(statusFilter: 'accepted'),
-              OrdersList(statusFilter: 'completed_or_cancelled'),
-            ],
+            children: [OrdersList(statusFilter: 'pending'), OrdersList(statusFilter: 'accepted'), OrdersList(statusFilter: 'completed_or_cancelled')],
           ),
         ),
       ),
@@ -40,13 +39,57 @@ class OrdersList extends StatelessWidget {
     doc.update({'status': status});
   }
 
+  // دالة توليد وطباعة الفاتورة PDF (باللغة الإنجليزية لضمان توافق الخطوط العالمية للطباعة)
+  Future<void> _printReceipt(String orderId, Map<String, dynamic> data) async {
+    final doc = pw.Document();
+    List items = data['items'] ?? [];
+    
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat.roll80, // مقاس بكرة الكاشير القياسية
+        build: (pw.Context context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Text('KONAFA SYSTEM', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 5),
+                pw.Text('Order Receipt', style: const pw.TextStyle(fontSize: 16)),
+                pw.Divider(),
+                pw.Text('Order ID: #${orderId.substring(0, 8)}'),
+                pw.Text('Customer: ${data['customerName']}'),
+                pw.Text('Phone: ${data['customerPhone']}'),
+                pw.Divider(),
+                pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [pw.Text('Item'), pw.Text('Qty')]),
+                pw.Divider(borderStyle: pw.BorderStyle.dashed),
+                ...items.map((item) => pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [pw.Text(item['name']), pw.Text('${item['quantity']}')]
+                )).toList(),
+                pw.Divider(),
+                pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
+                  pw.Text('TOTAL AMOUNT:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                  pw.Text('${data['totalAmount']} EGP', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))
+                ]),
+                pw.SizedBox(height: 20),
+                pw.Text('Thank you for your order!', style: const pw.TextStyle(fontSize: 12)),
+                pw.Text('Powered by Konafa System', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey)),
+              ],
+            )
+          );
+        },
+      ),
+    );
+    await Printing.layoutPdf(onLayout: (PdfPageFormat format) async => doc.save());
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
       stream: FirebaseFirestore.instance.collection('Orders').snapshots(),
       builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
         if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
         var docs = snapshot.data!.docs.where((doc) {
           String s = doc['status'] ?? '';
           if (statusFilter == 'completed_or_cancelled') return s == 'completed' || s == 'cancelled';
@@ -54,8 +97,6 @@ class OrdersList extends StatelessWidget {
         }).toList();
 
         if (docs.isEmpty) return const Center(child: Text('لا يوجد طلبات في هذا القسم'));
-
-        // الترتيب من الأحدث للأقدم
         docs.sort((a, b) {
           var tA = (a.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
           var tB = (b.data() as Map<String, dynamic>)['timestamp'] as Timestamp?;
@@ -78,27 +119,29 @@ class OrdersList extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('طلب #${order.id.substring(0, 6)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                        Text('${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.green, fontSize: 18)),
+                        // زر الطباعة الجديد
+                        IconButton(icon: const Icon(Icons.print, color: Colors.blue), onPressed: () => _printReceipt(order.id, data)),
                       ],
                     ),
+                    Text('${data['totalAmount']} ج.م', style: const TextStyle(fontWeight: FontWeight.w900, color: Colors.green, fontSize: 18)),
                     const Divider(),
-                    Text('تفاصيل العميل:', style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold)),
-                    Text('${data['customerName']} - ${data['customerPhone']}\nالعنوان/الاستلام: ${data['deliveryDetails']}'),
+                    Text('العميل: ${data['customerName']} - ${data['customerPhone']}'),
+                    Text('العنوان: ${data['deliveryDetails']}'),
                     const SizedBox(height: 10),
-                    Text('المنتجات:', style: TextStyle(color: Colors.orange[800], fontWeight: FontWeight.bold)),
-                    ...items.map((item) => Text('- ${item['name']} (الكمية: ${item['quantity']})')),
+                    ...items.map((item) => Text('- ${item['name']} (x${item['quantity']})')),
                     const SizedBox(height: 15),
-                    
-                    // أزرار التحكم حسب الحالة
                     if (statusFilter == 'pending') Row(
                       children: [
-                        Expanded(child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'accepted'), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue), child: const Text('قبول وتجهيز', style: TextStyle(color: Colors.white)))),
+                        Expanded(child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'accepted'), style: ElevatedButton.styleFrom(backgroundColor: Colors.blue), child: const Text('تجهيز', style: TextStyle(color: Colors.white)))),
                         const SizedBox(width: 10),
-                        Expanded(child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'cancelled'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('إلغاء الطلب', style: TextStyle(color: Colors.white)))),
+                        Expanded(child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'cancelled'), style: ElevatedButton.styleFrom(backgroundColor: Colors.red), child: const Text('إلغاء', style: TextStyle(color: Colors.white)))),
                       ],
                     ),
-                    if (statusFilter == 'accepted') SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'completed'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green), child: const Text('تم التسليم (إنهاء الطلب)', style: TextStyle(color: Colors.white)))),
-                    if (statusFilter == 'completed_or_cancelled') Center(child: Text(data['status'] == 'completed' ? '✅ اكتمل بنجاح' : '❌ تم الإلغاء', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: data['status'] == 'completed' ? Colors.green : Colors.red))),
+                    if (statusFilter == 'accepted') SizedBox(width: double.infinity, child: ElevatedButton(onPressed: () => _updateStatus(order.reference, 'completed'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green), child: const Text('تم التسليم', style: TextStyle(color: Colors.white)))),
+                    if (statusFilter == 'completed_or_cancelled') Column(children: [
+                      Center(child: Text(data['status'] == 'completed' ? '✅ اكتمل بنجاح' : '❌ تم الإلغاء', style: TextStyle(fontWeight: FontWeight.bold, color: data['status'] == 'completed' ? Colors.green : Colors.red))),
+                      if(data['status'] == 'completed' && data['rating'] != null) Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Text('تقييم العميل: '), ...List.generate(5, (i) => Icon(i < (data['rating'] as int) ? Icons.star : Icons.star_border, color: Colors.orange, size: 16))])
+                    ]),
                   ],
                 ),
               ),

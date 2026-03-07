@@ -5,6 +5,7 @@ import 'admin_dashboard_screen.dart';
 import 'admin_menu_screen.dart';
 import 'admin_orders_screen.dart';
 import 'admin_customers_screen.dart';
+import 'admin_settings_screen.dart';
 
 class AdminHomeWrapper extends StatefulWidget {
   const AdminHomeWrapper({super.key});
@@ -19,6 +20,7 @@ class _AdminHomeWrapperState extends State<AdminHomeWrapper> {
     const AdminOrdersScreen(),
     const AdminMenuScreen(),
     const AdminCustomersScreen(),
+    const AdminSettingsScreen(),
   ];
 
   @override
@@ -36,6 +38,7 @@ class _AdminHomeWrapperState extends State<AdminHomeWrapper> {
           BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: 'الطلبات'),
           BottomNavigationBarItem(icon: Icon(Icons.restaurant_menu), label: 'المنيو'),
           BottomNavigationBarItem(icon: Icon(Icons.people), label: 'العملاء'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
         ],
       ),
       floatingActionButton: FloatingActionButton(
