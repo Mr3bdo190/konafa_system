@@ -14,7 +14,6 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   final List<String> _categories = ['كنافة', 'بسبوسة', 'جلاش', 'مشروبات'];
   bool _isUploading = false;
   
-  // تم تصحيح اسم السحابة بناءً على الصورة (t بدل l)
   final String cloudName = 'dtrtgbtss';
   final String uploadPreset = 'konafa_system';
 
@@ -36,19 +35,12 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
           var json = jsonDecode(responseData);
           String fileUrl = json['secure_url']; 
           imageCtrl.text = fileUrl;
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الصورة بنجاح! ✅'), backgroundColor: Colors.green));
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع الصورة بنجاح! ✅'), backgroundColor: Colors.green));
         } else {
-          print("Cloudinary Error: $responseData");
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الرفع ❌: ${response.statusCode}'), backgroundColor: Colors.red, duration: const Duration(seconds: 5)));
-          }
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الرفع ❌: ${response.statusCode}'), backgroundColor: Colors.red));
         }
       } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الاتصال: $e'), backgroundColor: Colors.red));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('فشل الاتصال: $e'), backgroundColor: Colors.red));
       }
       setDialogState(() => _isUploading = false);
     }
@@ -57,6 +49,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   void _showAddEditDialog([DocumentSnapshot? document]) {
     final nameCtrl = TextEditingController(text: document != null ? document['name'] : '');
     final priceCtrl = TextEditingController(text: document != null ? document['price'].toString() : '');
+    final descCtrl = TextEditingController(text: document != null ? document['description'] : ''); 
     final imageCtrl = TextEditingController(text: document != null ? document['image'] : '');
     bool isAvailable = document != null ? (document.data() as Map<String, dynamic>)['isAvailable'] ?? true : true;
     String selectedCategory = (document != null && _categories.contains(document['category'])) ? document['category'] : _categories[0];
@@ -74,6 +67,8 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                 children: [
                   TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: 'اسم المنتج', prefixIcon: Icon(Icons.fastfood))),
                   TextField(controller: priceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'السعر', prefixIcon: Icon(Icons.attach_money))),
+                  TextField(controller: descCtrl, maxLines: 2, decoration: const InputDecoration(labelText: 'وصف المنتج (المكونات والتفاصيل)', prefixIcon: Icon(Icons.description))),
+                  const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
                     value: selectedCategory, decoration: const InputDecoration(labelText: 'التصنيف', prefixIcon: Icon(Icons.category)),
                     items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
@@ -104,6 +99,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                   if (nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
                   Map<String, dynamic> productData = {
                     'name': nameCtrl.text.trim(), 'price': double.tryParse(priceCtrl.text.trim()) ?? 0.0,
+                    'description': descCtrl.text.trim(), 
                     'category': selectedCategory, 'image': imageCtrl.text.trim(), 'isAvailable': isAvailable,
                   };
                   if (document == null) await FirebaseFirestore.instance.collection('Menu').add(productData);

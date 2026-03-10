@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AdminCustomersScreen extends StatelessWidget {
+class AdminCustomersScreen extends StatefulWidget {
   const AdminCustomersScreen({super.key});
+  @override
+  State<AdminCustomersScreen> createState() => _AdminCustomersScreenState();
+}
+
+class _AdminCustomersScreenState extends State<AdminCustomersScreen> {
+  String _searchQuery = ''; 
 
   void _showCustomerDetails(BuildContext context, String userId, Map<String, dynamic> userData) async {
     showModalBottomSheet(
-      context: context, isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
       builder: (context) => FutureBuilder<QuerySnapshot>(
         future: FirebaseFirestore.instance.collection('Orders').where('customerId', isEqualTo: userId).get(),
         builder: (context, snapshot) {
@@ -15,14 +20,11 @@ class AdminCustomersScreen extends StatelessWidget {
           if (snapshot.hasData) {
             ordersCount = snapshot.data!.docs.length;
             for (var doc in snapshot.data!.docs) {
-              if (doc['status'] != 'cancelled') {
-                totalSpent += num.tryParse(doc['totalAmount'].toString())?.toDouble() ?? 0.0;
-              }
+              if (doc['status'] != 'cancelled') totalSpent += num.tryParse(doc['totalAmount'].toString())?.toDouble() ?? 0.0;
             }
           }
           return Container(
-            padding: const EdgeInsets.all(25),
-            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+            padding: const EdgeInsets.all(25), decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
             child: Column(
               mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -32,13 +34,10 @@ class AdminCustomersScreen extends StatelessWidget {
                   children: [
                     const CircleAvatar(radius: 35, backgroundColor: Colors.orange, child: Icon(Icons.person, size: 40, color: Colors.white)),
                     const SizedBox(width: 15),
-                    Expanded(child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(userData['name'] ?? 'عميل غير مسجل الاسم', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text(userData['name'] ?? 'عميل غير مسجل', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                         Text(userData['phone'] ?? 'بدون رقم', style: const TextStyle(fontSize: 16, color: Colors.grey)),
-                      ],
-                    ))
+                    ]))
                   ],
                 ),
                 const Divider(height: 40, thickness: 1.5),
@@ -74,28 +73,57 @@ class AdminCustomersScreen extends StatelessWidget {
       child: Scaffold(
         backgroundColor: const Color(0xFFF5F3F8),
         appBar: AppBar(title: const Text('قائمة العملاء'), backgroundColor: Colors.orange, centerTitle: true),
-        body: StreamBuilder(
-          stream: FirebaseFirestore.instance.collection('Users').where('role', isEqualTo: 'customer').snapshots(),
-          builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            return ListView.builder(
-              padding: const EdgeInsets.all(15), itemCount: snapshot.data!.docs.length,
-              itemBuilder: (context, index) {
-                var user = snapshot.data!.docs[index]; var data = user.data() as Map<String, dynamic>;
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12), elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.person, color: Colors.white)),
-                    title: Text(data['name'] != null && data['name'].toString().isNotEmpty ? data['name'] : 'عميل جديد', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(data['phone'] ?? 'بدون هاتف', style: const TextStyle(color: Colors.grey)),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.orange),
-                    onTap: () => _showCustomerDetails(context, user.id, data),
-                  ),
-                );
-              },
-            );
-          },
+        body: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(15.0),
+              child: TextField(
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: 'ابحث بالاسم أو رقم الهاتف...',
+                  prefixIcon: const Icon(Icons.search, color: Colors.orange),
+                  filled: true, fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                ),
+              ),
+            ),
+            Expanded(
+              child: StreamBuilder(
+                stream: FirebaseFirestore.instance.collection('Users').where('role', isEqualTo: 'customer').snapshots(),
+                builder: (context, AsyncSnapshot<QuerySnapshot> snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  
+                  var users = snapshot.data!.docs.where((user) {
+                    var data = user.data() as Map<String, dynamic>;
+                    String name = (data['name'] ?? '').toString().toLowerCase();
+                    String phone = (data['phone'] ?? '').toString().toLowerCase();
+                    String query = _searchQuery.toLowerCase();
+                    return name.contains(query) || phone.contains(query);
+                  }).toList();
+
+                  if (users.isEmpty) return const Center(child: Text('لم يتم العثور على عملاء 🤷‍♂️'));
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(15), itemCount: users.length,
+                    itemBuilder: (context, index) {
+                      var user = users[index]; var data = user.data() as Map<String, dynamic>;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12), elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+                          leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.person, color: Colors.white)),
+                          title: Text(data['name'] != null && data['name'].toString().isNotEmpty ? data['name'] : 'عميل جديد', style: const TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text(data['phone'] ?? 'بدون هاتف', style: const TextStyle(color: Colors.grey)),
+                          trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.orange),
+                          onTap: () => _showCustomerDetails(context, user.id, data),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ),
       ),
     );

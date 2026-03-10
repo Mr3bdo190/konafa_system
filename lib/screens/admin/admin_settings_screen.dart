@@ -10,6 +10,31 @@ class AdminSettingsScreen extends StatefulWidget {
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _codeCtrl = TextEditingController();
   final _discountCtrl = TextEditingController();
+  final _deliveryFeeCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDeliveryFee();
+  }
+
+  void _loadDeliveryFee() async {
+    var doc = await FirebaseFirestore.instance.collection('Settings').doc('App').get();
+    if (doc.exists) {
+      setState(() {
+        _deliveryFeeCtrl.text = (doc.data()?['deliveryFee'] ?? 0).toString();
+      });
+    }
+  }
+
+  void _saveDeliveryFee() async {
+    if (_deliveryFeeCtrl.text.isEmpty) return;
+    await FirebaseFirestore.instance.collection('Settings').doc('App').set({
+      'deliveryFee': double.tryParse(_deliveryFeeCtrl.text.trim()) ?? 0.0
+    }, SetOptions(merge: true));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ مصاريف التوصيل بنجاح ✅'), backgroundColor: Colors.green));
+  }
 
   void _addCoupon() async {
     if (_codeCtrl.text.isEmpty || _discountCtrl.text.isEmpty) return;
@@ -35,9 +60,24 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // قسم وضع الصيانة
-              const Text('إعدادات النظام', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+              const Text('إعدادات النظام الأساسية ⚙️', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
               const SizedBox(height: 10),
+              
+              Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                child: Padding(
+                  padding: const EdgeInsets.all(15),
+                  child: Row(
+                    children: [
+                      Expanded(child: TextField(controller: _deliveryFeeCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'مصاريف التوصيل (ج.م)', border: OutlineInputBorder()))),
+                      const SizedBox(width: 10),
+                      ElevatedButton(onPressed: _saveDeliveryFee, style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, padding: const EdgeInsets.symmetric(vertical: 15)), child: const Text('حفظ', style: TextStyle(color: Colors.white)))
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
               StreamBuilder(
                 stream: FirebaseFirestore.instance.collection('Settings').doc('App').snapshots(),
                 builder: (context, AsyncSnapshot<DocumentSnapshot> snapshot) {
@@ -61,7 +101,6 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               ),
               const Divider(height: 40, thickness: 2),
 
-              // قسم الكوبونات
               const Text('إدارة كوبونات الخصم 🎁', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
               const SizedBox(height: 10),
               Card(

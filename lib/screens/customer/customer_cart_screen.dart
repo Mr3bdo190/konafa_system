@@ -14,57 +14,64 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
   double _discountPercentage = 0.0;
   String _appliedCoupon = '';
   bool _isProcessing = false;
+  double _deliveryFee = 0.0;
+  String _customerAddress = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettingsAndUser();
+  }
+
+  void _loadSettingsAndUser() async {
+    var settingsDoc = await FirebaseFirestore.instance.collection('Settings').doc('App').get();
+    if (settingsDoc.exists) {
+      setState(() => _deliveryFee = (settingsDoc.data()?['deliveryFee'] ?? 0.0).toDouble());
+    }
+    String uid = FirebaseAuth.instance.currentUser!.uid;
+    var userDoc = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
+    if (userDoc.exists) {
+      setState(() => _customerAddress = userDoc['address'] ?? 'استلام من الفرع');
+    }
+  }
 
   void _applyCoupon() async {
     String code = _couponCtrl.text.trim().toUpperCase();
     if (code.isEmpty) return;
-    
     var doc = await FirebaseFirestore.instance.collection('Coupons').doc(code).get();
     if (doc.exists && doc.data()!['isActive'] == true) {
-      setState(() {
-        _discountPercentage = (doc.data()!['discount'] ?? 0).toDouble();
-        _appliedCoupon = code;
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('مبروك! تم تفعيل خصم $_discountPercentage% 🎉'), backgroundColor: Colors.green));
+      setState(() { _discountPercentage = (doc.data()!['discount'] ?? 0).toDouble(); _appliedCoupon = code; });
+      if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تم تفعيل الخصم $_discountPercentage% 🎉'), backgroundColor: Colors.green));
     } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الكود غير صحيح أو منتهي الصلاحية ❌'), backgroundColor: Colors.red));
+      if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الكود غير صحيح ❌'), backgroundColor: Colors.red));
     }
   }
 
   void _checkout(double finalTotal, List<Map<String, dynamic>> items) async {
     setState(() => _isProcessing = true);
     String uid = FirebaseAuth.instance.currentUser!.uid;
-    
     var userDoc = await FirebaseFirestore.instance.collection('Users').doc(uid).get();
-    String name = userDoc['name'] ?? 'عميل';
-    String phone = userDoc['phone'] ?? 'غير مسجل';
-    String address = userDoc['address'] ?? 'استلام من الفرع';
-
+    
     await FirebaseFirestore.instance.collection('Orders').add({
       'customerId': uid,
-      'customerName': name,
-      'customerPhone': phone,
-      'deliveryDetails': address,
+      'customerName': userDoc['name'] ?? 'عميل',
+      'customerPhone': userDoc['phone'] ?? 'غير مسجل',
+      'deliveryDetails': _customerAddress,
       'items': items,
-      'totalAmount': finalTotal,
+      'totalAmount': finalTotal, 
       'discountApplied': _discountPercentage,
+      'deliveryFeeApplied': _customerAddress == 'استلام من الفرع' ? 0.0 : _deliveryFee,
       'status': 'pending',
-      'orderType': address == 'استلام من الفرع' ? 'pickup' : 'delivery',
+      'orderType': _customerAddress == 'استلام من الفرع' ? 'pickup' : 'delivery',
       'deliveryNotes': _notesCtrl.text.trim(),
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // مسح السلة
     var cartDocs = await FirebaseFirestore.instance.collection('Users').doc(uid).collection('Cart').get();
-    for (var doc in cartDocs.docs) {
-      await doc.reference.delete();
-    }
+    for (var doc in cartDocs.docs) { await doc.reference.delete(); }
 
     setState(() => _isProcessing = false);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلبك بنجاح! 🚀'), backgroundColor: Colors.green));
+    if (!mounted) return; ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم إرسال طلبك بنجاح! 🚀'), backgroundColor: Colors.green));
   }
 
   @override
@@ -91,20 +98,18 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
             }
 
             double discountAmount = subTotal * (_discountPercentage / 100);
-            double finalTotal = subTotal - discountAmount;
+            double actualDeliveryFee = _customerAddress == 'استلام من الفرع' ? 0.0 : _deliveryFee;
+            double finalTotal = (subTotal - discountAmount) + actualDeliveryFee;
 
             return Column(
               children: [
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(15),
-                    itemCount: snapshot.data!.docs.length,
+                    padding: const EdgeInsets.all(15), itemCount: snapshot.data!.docs.length,
                     itemBuilder: (context, index) {
-                      var doc = snapshot.data!.docs[index];
-                      var data = doc.data() as Map<String, dynamic>;
+                      var doc = snapshot.data!.docs[index]; var data = doc.data() as Map<String, dynamic>;
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 15),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                        margin: const EdgeInsets.only(bottom: 15), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         child: ListTile(
                           leading: ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network(data['image'], width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (_,__,___) => const Icon(Icons.fastfood))),
                           title: Text(data['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -127,12 +132,15 @@ class _CustomerCartScreenState extends State<CustomerCartScreen> {
                           ElevatedButton(onPressed: _applyCoupon, style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)), padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20)), child: const Text('تفعيل', style: TextStyle(color: Colors.white))),
                         ],
                       ),
-                      if (_discountPercentage > 0) Padding(padding: const EdgeInsets.only(top: 10), child: Text('تم تطبيق خصم $_discountPercentage% (كود: $_appliedCoupon)', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+                      const SizedBox(height: 10),
+                      TextField(controller: _notesCtrl, decoration: InputDecoration(hintText: 'ملاحظات للطيار (مثال: بجوار صيدلية كذا)', filled: true, fillColor: Colors.orange.shade50, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.directions_bike, color: Colors.orange))),
                       const Divider(height: 30, thickness: 2),
-                      TextField(controller: _notesCtrl, decoration: InputDecoration(hintText: 'ملاحظات للطيار (مثال: بجوار صيدلية كذا)', filled: true, fillColor: Colors.orange.shade50, border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none), prefixIcon: const Icon(Icons.directions_bike, color: Colors.orange))), const SizedBox(height: 15),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('المجموع:', style: TextStyle(fontSize: 18, color: Colors.grey)), Text('$subTotal ج', style: const TextStyle(fontSize: 18, decoration: TextDecoration.lineThrough, color: Colors.grey))]),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الإجمالي بعد الخصم:', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)), Text('$finalTotal ج', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.deepPurple))]),
-                      const SizedBox(height: 20),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('المجموع:', style: TextStyle(fontSize: 16, color: Colors.grey)), Text('$subTotal ج', style: const TextStyle(fontSize: 16, color: Colors.grey))]),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الخصم:', style: TextStyle(fontSize: 16, color: Colors.green)), Text('- $discountAmount ج', style: const TextStyle(fontSize: 16, color: Colors.green))]),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('رسوم التوصيل:', style: TextStyle(fontSize: 16, color: Colors.grey)), Text('+ $actualDeliveryFee ج', style: const TextStyle(fontSize: 16, color: Colors.grey))]),
+                      const Divider(),
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [const Text('الإجمالي المطلوب:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), Text('$finalTotal ج', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.deepPurple))]),
+                      const SizedBox(height: 15),
                       _isProcessing 
                         ? const CircularProgressIndicator()
                         : ElevatedButton(
